@@ -24,9 +24,7 @@ class CloudKitchenApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     title: 'Cloud Kitchen',
     theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xffd35400),
-      ),
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xffd35400)),
       useMaterial3: true,
     ),
     home: AuthGate(

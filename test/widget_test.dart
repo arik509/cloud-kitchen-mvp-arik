@@ -25,31 +25,27 @@ void main() {
     );
   });
 
-  testWidgets('renders the signed-out builder without Supabase initialization', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      CloudKitchenApp(
-        authRepository: const FakeAuthRepository(),
-        profileRepository: SequenceProfileRepository(const []),
-        signedOutBuilder: (_) => const Scaffold(
-          body: Center(child: Text('Test sign in')),
+  testWidgets(
+    'renders the signed-out builder without Supabase initialization',
+    (tester) async {
+      await tester.pumpWidget(
+        CloudKitchenApp(
+          authRepository: const FakeAuthRepository(),
+          profileRepository: SequenceProfileRepository(const []),
+          signedOutBuilder: (_) =>
+              const Scaffold(body: Center(child: Text('Test sign in'))),
+          roleHomeBuilder: (_, role) => Text(role.name),
         ),
-        roleHomeBuilder: (_, role) => Text(role.name),
-      ),
-    );
+      );
 
-    expect(find.text('Test sign in'), findsOneWidget);
-  });
+      expect(find.text('Test sign in'), findsOneWidget);
+    },
+  );
 
   testWidgets('retries a temporarily missing profile for the current user', (
     tester,
   ) async {
-    final profiles = SequenceProfileRepository([
-      null,
-      null,
-      UserRole.customer,
-    ]);
+    final profiles = SequenceProfileRepository([null, null, UserRole.customer]);
 
     await tester.pumpWidget(
       MaterialApp(

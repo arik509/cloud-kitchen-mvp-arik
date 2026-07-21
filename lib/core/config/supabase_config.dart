@@ -1,21 +1,13 @@
 class SupabaseConfig {
-  const SupabaseConfig._({
-    required this.url,
-    required this.publishableKey,
-  });
+  const SupabaseConfig._({required this.url, required this.publishableKey});
 
   final Uri url;
   final String publishableKey;
 
   factory SupabaseConfig.fromEnvironment() {
     const url = String.fromEnvironment('SUPABASE_URL');
-    const publishableKey = String.fromEnvironment(
-      'SUPABASE_PUBLISHABLE_KEY',
-    );
-    return SupabaseConfig.fromValues(
-      url: url,
-      publishableKey: publishableKey,
-    );
+    const publishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+    return SupabaseConfig.fromValues(url: url, publishableKey: publishableKey);
   }
 
   factory SupabaseConfig.fromValues({

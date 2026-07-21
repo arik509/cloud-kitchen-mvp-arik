@@ -4,10 +4,7 @@ import '../../auth/data/auth_repository.dart';
 import '../data/profile_repository.dart';
 import '../domain/user_role.dart';
 
-typedef RoleHomeBuilder = Widget Function(
-  BuildContext context,
-  UserRole role,
-);
+typedef RoleHomeBuilder = Widget Function(BuildContext context, UserRole role);
 
 class RoleRouter extends StatefulWidget {
   const RoleRouter({
@@ -83,9 +80,7 @@ class _RoleRouterState extends State<RoleRouter> {
     future: _role,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       if (snapshot.hasData) {
         return widget.homeBuilder(context, snapshot.data!);
@@ -167,10 +162,7 @@ class ProfileRouteFailureScreen extends StatelessWidget {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
               ),
-              TextButton(
-                onPressed: onSignOut,
-                child: const Text('Sign out'),
-              ),
+              TextButton(onPressed: onSignOut, child: const Text('Sign out')),
             ],
           ),
         ),
