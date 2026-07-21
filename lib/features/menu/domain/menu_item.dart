@@ -61,8 +61,8 @@ class MenuItem {
     'description': _optionalText(description),
     'price': price,
     'is_available': isAvailable,
-    'image_path': imagePath,
-    'image_url': imageUrl,
+    if (imagePath != null) 'image_path': imagePath,
+    if (imageUrl != null) 'image_url': imageUrl,
   };
 
   static String? _optionalText(Object? value) {

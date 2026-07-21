@@ -30,6 +30,21 @@ void main() {
     expect(item.imagePath, 'owner/kitchen/item/image.webp');
   });
 
+  test('omits image_path from updates until an image has been uploaded', () {
+    const item = MenuItem(
+      id: 'item-1',
+      kitchenId: 'kitchen-1',
+      name: 'Meal',
+      price: 100,
+      isAvailable: true,
+    );
+
+    expect(item.toUpdateMap(), isNot(contains('image_path')));
+    expect(
+      item.copyWith(imagePath: 'owner/kitchen/item/image.jpg').toUpdateMap(),
+      containsPair('image_path', 'owner/kitchen/item/image.jpg'),
+    );
+  });
   test('draft mapping keeps description optional', () {
     const draft = MenuItemDraft(
       name: ' Soup ',
