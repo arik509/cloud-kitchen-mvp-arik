@@ -1,42 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const _supabaseUrl = 'https://zxhzxpbdufuziccgccxg.supabase.co';
-const _supabaseKey = 'sb_publishable__vwSndgSPNJ_Z3vSd-4Wvg_YW0CLzAY';
+import 'app/cloud_kitchen_app.dart';
+import 'bootstrap.dart';
+import 'features/auth/data/auth_repository.dart';
+import 'features/profile/data/profile_repository.dart';
+import 'features/profile/domain/user_role.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: _supabaseUrl, publishableKey: _supabaseKey);
-  runApp(const CloudKitchenApp());
-}
-
-class CloudKitchenApp extends StatelessWidget {
-  const CloudKitchenApp({super.key});
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-    debugShowCheckedModeBanner: false,
-    title: 'Cloud Kitchen',
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xffd35400)),
-      useMaterial3: true,
-    ),
-    home: const AuthGate(),
-  );
-}
-
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
-  @override
-  Widget build(BuildContext context) => StreamBuilder<AuthState>(
-    stream: Supabase.instance.client.auth.onAuthStateChange,
-    builder: (context, snapshot) {
-      final session =
-          snapshot.data?.session ??
-          Supabase.instance.client.auth.currentSession;
-      return session == null ? const LoginScreen() : const RoleRouter();
-    },
-  );
-}
+Future<void> main() => bootstrap(
+  appBuilder: (client) => CloudKitchenApp(
+    authRepository: SupabaseAuthRepository(client),
+    profileRepository: SupabaseProfileRepository(client),
+    signedOutBuilder: (_) => const LoginScreen(),
+    roleHomeBuilder: (_, role) => HomeScreen(role: role),
+  ),
+);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -287,63 +265,6 @@ class _SignupScreenState extends State<SignupScreen> {
     ),
   );
 }
-
-class RoleRouter extends StatelessWidget {
-  const RoleRouter({super.key});
-  @override
-  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-    future: Supabase.instance.client.from('profiles').select().single(),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return SetupNeeded(error: snapshot.error.toString());
-      }
-      if (!snapshot.hasData) {
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
-      }
-      final role = switch (snapshot.data!['role']) {
-        'kitchen_owner' => UserRole.owner,
-        'rider' => UserRole.rider,
-        _ => UserRole.customer,
-      };
-      return HomeScreen(role: role);
-    },
-  );
-}
-
-class SetupNeeded extends StatelessWidget {
-  const SetupNeeded({required this.error, super.key});
-  final String error;
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.construction, size: 72),
-            const SizedBox(height: 16),
-            const Text(
-              'Database setup is needed',
-              style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Run the supplied schema.sql in Supabase SQL Editor, then sign in again.',
-              textAlign: TextAlign.center,
-            ),
-            TextButton(
-              onPressed: () => Supabase.instance.client.auth.signOut(),
-              child: const Text('Sign out'),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-enum UserRole { customer, owner, rider }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({required this.role, super.key});
