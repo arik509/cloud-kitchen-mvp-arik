@@ -51,6 +51,8 @@ migrate_working_dir/
 .secrets/
 /android/local.properties
 /supabase/.temp/
+/config/dart_define*.json
+!/config/dart_define.example.json
 
 # Secrets, signing material, and generated credential files
 key.properties

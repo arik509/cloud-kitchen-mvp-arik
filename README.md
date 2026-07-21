@@ -18,14 +18,23 @@ samples, guidance on mobile development, and a full API reference.
 
 ## Supabase configuration
 
-The current MVP source contains a Supabase project URL and a publishable client
-key. A Supabase publishable key is intended for client applications and is not a
-`service_role` secret, but keeping project configuration hard-coded makes it
-easy to point development builds at the wrong environment.
+Supabase configuration is supplied at compile time through `SUPABASE_URL` and
+`SUPABASE_PUBLISHABLE_KEY`. Copy
+`config/dart_define.example.json` to `config/dart_define.local.json`, replace
+the placeholders locally, and run:
 
-Before feature development, migrate the URL and publishable key to compile-time
-Flutter values such as `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, supplied
-with `--dart-define` or `--dart-define-from-file`. Local define files must remain
-untracked. Never place a Supabase `service_role` key, database password, or
-other private credential in Flutter client code or a committed configuration
-file.
+```text
+flutter run --dart-define-from-file=config/dart_define.local.json
+```
+
+Local define files are ignored by Git. A Supabase publishable key is intended
+for client applications and is visible in compiled Flutter apps; authorization
+must be enforced with Row Level Security. Never place a Supabase
+`service_role` key, database password, or private credential in Flutter client
+code or a committed configuration file.
+
+## Demo role policy
+
+This demonstration MVP allows users to select `kitchen_owner` or `rider`
+during signup. Production deployments must replace self-selected privileged
+roles with an administrator approval and verification workflow.
