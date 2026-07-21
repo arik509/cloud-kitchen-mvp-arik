@@ -56,7 +56,7 @@ class StartupFailureApp extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.settings_alert_outlined, size: 72),
+                const Icon(Icons.warning_amber_outlined, size: 72),
                 const SizedBox(height: 16),
                 Text(
                   title,
