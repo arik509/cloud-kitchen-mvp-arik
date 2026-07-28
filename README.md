@@ -38,3 +38,10 @@ code or a committed configuration file.
 This demonstration MVP allows users to select `kitchen_owner` or `rider`
 during signup. Production deployments must replace self-selected privileged
 roles with an administrator approval and verification workflow.
+
+## Database migrations
+
+`database/schema.sql` is a legacy schema snapshot and must not be run again on
+the existing Supabase project. All future database changes use timestamped,
+incremental files under `supabase/migrations/`; see `supabase/README.md` for the
+required review and application order.

@@ -56,13 +56,13 @@ begin
       to authenticated
       with check (
         bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = auth.uid()::text
+        and (storage.foldername(name))[1] = (select auth.uid())::text
         and array_length(storage.foldername(name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
-          where p.id = auth.uid()
+          where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
             and k.id::text = (storage.foldername(name))[2]
         )
@@ -86,26 +86,26 @@ begin
       to authenticated
       using (
         bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = auth.uid()::text
+        and (storage.foldername(name))[1] = (select auth.uid())::text
         and array_length(storage.foldername(name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
-          where p.id = auth.uid()
+          where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
             and k.id::text = (storage.foldername(name))[2]
         )
       )
       with check (
         bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = auth.uid()::text
+        and (storage.foldername(name))[1] = (select auth.uid())::text
         and array_length(storage.foldername(name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
-          where p.id = auth.uid()
+          where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
             and k.id::text = (storage.foldername(name))[2]
         )
@@ -129,13 +129,13 @@ begin
       to authenticated
       using (
         bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = auth.uid()::text
+        and (storage.foldername(name))[1] = (select auth.uid())::text
         and array_length(storage.foldername(name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
-          where p.id = auth.uid()
+          where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
             and k.id::text = (storage.foldername(name))[2]
         )
