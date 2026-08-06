@@ -36,7 +36,7 @@ begin
       on storage.objects
       for select
       to public
-      using (bucket_id = 'menu-images');
+      using (storage.objects.bucket_id = 'menu-images');
   end if;
 end
 $$;
@@ -55,16 +55,16 @@ begin
       for insert
       to authenticated
       with check (
-        bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = (select auth.uid())::text
-        and array_length(storage.foldername(name), 1) = 3
+        storage.objects.bucket_id = 'menu-images'
+        and (storage.foldername(storage.objects.name))[1] = (select auth.uid())::text
+        and array_length(storage.foldername(storage.objects.name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
           where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
-            and k.id::text = (storage.foldername(name))[2]
+            and k.id::text = (storage.foldername(storage.objects.name))[2]
         )
       );
   end if;
@@ -85,29 +85,29 @@ begin
       for update
       to authenticated
       using (
-        bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = (select auth.uid())::text
-        and array_length(storage.foldername(name), 1) = 3
+        storage.objects.bucket_id = 'menu-images'
+        and (storage.foldername(storage.objects.name))[1] = (select auth.uid())::text
+        and array_length(storage.foldername(storage.objects.name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
           where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
-            and k.id::text = (storage.foldername(name))[2]
+            and k.id::text = (storage.foldername(storage.objects.name))[2]
         )
       )
       with check (
-        bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = (select auth.uid())::text
-        and array_length(storage.foldername(name), 1) = 3
+        storage.objects.bucket_id = 'menu-images'
+        and (storage.foldername(storage.objects.name))[1] = (select auth.uid())::text
+        and array_length(storage.foldername(storage.objects.name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
           where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
-            and k.id::text = (storage.foldername(name))[2]
+            and k.id::text = (storage.foldername(storage.objects.name))[2]
         )
       );
   end if;
@@ -128,16 +128,16 @@ begin
       for delete
       to authenticated
       using (
-        bucket_id = 'menu-images'
-        and (storage.foldername(name))[1] = (select auth.uid())::text
-        and array_length(storage.foldername(name), 1) = 3
+        storage.objects.bucket_id = 'menu-images'
+        and (storage.foldername(storage.objects.name))[1] = (select auth.uid())::text
+        and array_length(storage.foldername(storage.objects.name), 1) = 3
         and exists (
           select 1
           from public.profiles p
           join public.kitchens k on k.owner_id = p.id
           where p.id = (select auth.uid())
             and p.role = 'kitchen_owner'::public.user_role
-            and k.id::text = (storage.foldername(name))[2]
+            and k.id::text = (storage.foldername(storage.objects.name))[2]
         )
       );
   end if;

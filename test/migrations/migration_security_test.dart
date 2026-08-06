@@ -38,11 +38,22 @@ void main() {
     expect(sql, isNot(contains('create trigger')));
     expect(
       sql,
-      contains("(storage.foldername(name))[1] = (select auth.uid())::text"),
+      contains(
+        '(storage.foldername(storage.objects.name))[1] = '
+        '(select auth.uid())::text',
+      ),
     );
     expect(sql, contains("p.role = 'kitchen_owner'::public.user_role"));
     expect(sql, contains("k.owner_id = p.id"));
-    expect(sql, contains("k.id::text = (storage.foldername(name))[2]"));
+    expect(
+      sql,
+      contains('k.id::text = (storage.foldername(storage.objects.name))[2]'),
+    );
+    expect(sql, isNot(contains('storage.foldername(name)')));
+    expect(
+      RegExp(r'(?<!storage\.objects\.)\bbucket_id\b').hasMatch(sql),
+      isFalse,
+    );
   });
 
   test(
