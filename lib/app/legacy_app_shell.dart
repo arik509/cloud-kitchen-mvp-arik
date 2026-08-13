@@ -13,6 +13,9 @@ import '../features/orders/data/order_repository.dart';
 import '../features/orders/presentation/kitchen_orders_page.dart';
 import '../features/orders/presentation/my_orders_page.dart';
 import '../features/profile/domain/user_role.dart';
+import '../features/rider/data/rider_delivery_repository.dart';
+import '../features/rider/presentation/rider_deliveries_page.dart';
+import '../features/rider/presentation/rider_earnings_page.dart';
 import '../features/wallet/data/wallet_repository.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -281,6 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final orderRepository = SupabaseOrderRepository(widget.client);
     final chatRepository = SupabaseChatRepository(widget.client);
+    final riderRepository = SupabaseRiderDeliveryRepository(widget.client);
     final pages = switch (widget.role) {
       UserRole.customer => [
         CustomerDiscoveryPage(
@@ -310,7 +314,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const ProfilePage(),
       ],
-      UserRole.rider => const [DeliveriesPage(), EarningsPage(), ProfilePage()],
+      UserRole.rider => [
+        RiderDeliveriesPage(repository: riderRepository),
+        RiderEarningsPage(repository: riderRepository),
+        const ProfilePage(),
+      ],
     };
     final labels = switch (widget.role) {
       UserRole.customer => const ['Discover', 'My Orders', 'Profile'],

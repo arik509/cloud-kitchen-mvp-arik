@@ -159,6 +159,22 @@ void main() {
     expect(find.byKey(const Key('customer-chat-order-1')), findsNothing);
   });
 
+  testWidgets('customer sees delivery progress without rider identity', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        FakeOrderRepository([
+          Future.value([_customerOrder(status: OrderStatus.pickedUp)]),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Picked up'), findsOneWidget);
+    expect(find.textContaining('rider-'), findsNothing);
+    expect(find.text('Chat with Kitchen'), findsNothing);
+  });
 }
 
 CustomerOrder _customerOrder({required OrderStatus status}) => CustomerOrder(

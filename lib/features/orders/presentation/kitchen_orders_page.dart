@@ -8,7 +8,7 @@ import '../data/kitchen_order_repository.dart';
 import '../domain/order_models.dart';
 import 'order_ui.dart';
 
-enum KitchenOrderFilter { newOrders, active, ready, history }
+enum KitchenOrderFilter { newOrders, active, ready, delivery, history }
 
 class KitchenOrdersPage extends StatefulWidget {
   const KitchenOrdersPage({
@@ -151,6 +151,11 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
               label: Text('History'),
               icon: Icon(Icons.history),
             ),
+            ButtonSegment(
+              value: KitchenOrderFilter.delivery,
+              label: Text('Delivery'),
+              icon: Icon(Icons.delivery_dining),
+            ),
           ],
           selected: {_filter},
           onSelectionChanged: (selection) =>
@@ -194,7 +199,13 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       order.status == OrderStatus.accepted ||
           order.status == OrderStatus.preparing,
     KitchenOrderFilter.ready => order.status == OrderStatus.ready,
-    KitchenOrderFilter.history => order.status == OrderStatus.rejected,
+    KitchenOrderFilter.delivery =>
+      order.status == OrderStatus.awaitingRider ||
+          order.status == OrderStatus.riderAssigned ||
+          order.status == OrderStatus.pickedUp,
+    KitchenOrderFilter.history =>
+      order.status == OrderStatus.rejected ||
+          order.status == OrderStatus.delivered,
   };
 
   Widget _error(Object? error) {

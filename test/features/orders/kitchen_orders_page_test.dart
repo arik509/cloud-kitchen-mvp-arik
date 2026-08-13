@@ -117,6 +117,76 @@ void main() {
     expect(repository.lastTarget, OrderStatus.rejected);
     expect(find.textContaining('৳260.00 refunded'), findsOneWidget);
   });
+
+  testWidgets('hands a ready order to riders but exposes no rider actions', (
+    tester,
+  ) async {
+    final ready = KitchenOrder(
+      id: 'ready-1',
+      kitchenId: 'kitchen-1',
+      itemName: 'Chicken Bowl',
+      quantity: 1,
+      unitPrice: 250,
+      status: OrderStatus.ready,
+      finalPrice: 260,
+      deliveryAddress: 'Customer delivery road',
+      createdAt: DateTime.utc(2026, 8, 13, 12),
+    );
+    final repository = FakeKitchenOrderRepository(
+      [
+        Future.value([ready]),
+        Future.value(const []),
+      ],
+      updateResponse: Future.value(
+        const KitchenOrderStatusResult(
+          orderId: 'ready-1',
+          status: OrderStatus.awaitingRider,
+        ),
+      ),
+    );
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ready'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Awaiting rider'), findsOneWidget);
+    expect(find.text('Mark as picked up'), findsNothing);
+    expect(find.text('Mark as delivered'), findsNothing);
+    await tester.tap(find.text('Awaiting rider'));
+    await tester.pumpAndSettle();
+
+    expect(repository.lastTarget, OrderStatus.awaitingRider);
+  });
+
+  testWidgets('owner sees assigned delivery status without rider actions', (
+    tester,
+  ) async {
+    final order = KitchenOrder(
+      id: 'assigned-1',
+      kitchenId: 'kitchen-1',
+      itemName: 'Chicken Bowl',
+      quantity: 1,
+      unitPrice: 250,
+      status: OrderStatus.riderAssigned,
+      finalPrice: 260,
+      deliveryAddress: 'Customer delivery road',
+      createdAt: DateTime.utc(2026, 8, 13, 12),
+    );
+    await tester.pumpWidget(
+      _app(
+        FakeKitchenOrderRepository([
+          Future.value([order]),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delivery'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rider assigned'), findsOneWidget);
+    expect(find.text('Mark as picked up'), findsNothing);
+    expect(find.text('Mark as delivered'), findsNothing);
+  });
 }
 
 final _pendingOrder = KitchenOrder(

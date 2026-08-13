@@ -66,7 +66,7 @@ void main() {
     expect(result.walletBalance, 1000);
   });
 
-  test('defines only the Phase 4 legal state transitions', () {
+  test('defines owner transitions through rider handoff only', () {
     expect(allowedKitchenOrderTransitions(OrderStatus.pending), {
       OrderStatus.accepted,
       OrderStatus.rejected,
@@ -77,7 +77,11 @@ void main() {
     expect(allowedKitchenOrderTransitions(OrderStatus.preparing), {
       OrderStatus.ready,
     });
-    expect(allowedKitchenOrderTransitions(OrderStatus.ready), isEmpty);
+    expect(allowedKitchenOrderTransitions(OrderStatus.ready), {
+      OrderStatus.awaitingRider,
+    });
+    expect(allowedKitchenOrderTransitions(OrderStatus.awaitingRider), isEmpty);
+    expect(allowedKitchenOrderTransitions(OrderStatus.riderAssigned), isEmpty);
     expect(allowedKitchenOrderTransitions(OrderStatus.rejected), isEmpty);
   });
 

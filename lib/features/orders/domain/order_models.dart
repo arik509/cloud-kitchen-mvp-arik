@@ -206,6 +206,7 @@ const kitchenOrderTransitions = <OrderStatus, Set<OrderStatus>>{
   OrderStatus.pending: {OrderStatus.accepted, OrderStatus.rejected},
   OrderStatus.accepted: {OrderStatus.preparing},
   OrderStatus.preparing: {OrderStatus.ready},
+  OrderStatus.ready: {OrderStatus.awaitingRider},
 };
 
 Set<OrderStatus> allowedKitchenOrderTransitions(OrderStatus current) =>
