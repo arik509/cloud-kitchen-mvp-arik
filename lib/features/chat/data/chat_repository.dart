@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/data/rpc_response.dart';
+import '../../notifications/data/notification_dispatcher.dart';
 import '../domain/chat_models.dart';
 
 abstract interface class ChatRepository {
@@ -11,8 +12,9 @@ abstract interface class ChatRepository {
 }
 
 class SupabaseChatRepository implements ChatRepository {
-  SupabaseChatRepository(this._client);
+  SupabaseChatRepository(this._client, {this.dispatcher});
   final SupabaseClient _client;
+  final NotificationDispatcher? dispatcher;
 
   @override
   String get currentUserId => _client.auth.currentUser?.id ?? '';
@@ -56,7 +58,7 @@ class SupabaseChatRepository implements ChatRepository {
     final validation = validateChatMessage(text);
     if (validation != null) throw ChatException(validation);
     try {
-      return ChatMessage.fromMap(
+      final message = ChatMessage.fromMap(
         singleRpcRow(
           await _client.rpc(
             'send_order_chat_message',
@@ -64,10 +66,24 @@ class SupabaseChatRepository implements ChatRepository {
           ),
         ),
       );
+      return dispatchStoredChatMessage(message, dispatcher);
     } on PostgrestException catch (error) {
       throw ChatException.fromBackend(error.message);
     }
   }
+}
+
+Future<ChatMessage> dispatchStoredChatMessage(
+  ChatMessage message,
+  NotificationDispatcher? dispatcher,
+) async {
+  try {
+    await dispatcher?.dispatchChatMessage(message.id);
+  } catch (_) {
+    // The authoritative chat message is already stored. Push delivery is best
+    // effort and must never turn a successful send into a failure.
+  }
+  return message;
 }
 
 class ChatException implements Exception {

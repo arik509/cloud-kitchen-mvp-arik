@@ -3,11 +3,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/location/location_service.dart';
 import '../features/chat/data/chat_repository.dart';
+import '../features/chat/presentation/order_chat_page.dart';
 import '../features/customer/data/customer_catalog_repository.dart';
 import '../features/customer/presentation/customer_discovery_page.dart';
 import '../features/kitchen/data/kitchen_image_repository.dart';
 import '../features/kitchen/presentation/kitchen_page.dart';
 import '../features/menu/data/menu_image_repository.dart';
+import '../features/notifications/application/push_notification_service.dart';
+import '../features/notifications/data/notification_dispatcher.dart';
+import '../features/notifications/domain/notification_models.dart';
+import '../features/notifications/presentation/notification_settings_card.dart';
+import '../features/notifications/presentation/notification_navigation_handler.dart';
 import '../features/orders/data/kitchen_order_repository.dart';
 import '../features/orders/data/order_repository.dart';
 import '../features/orders/presentation/kitchen_orders_page.dart';
@@ -269,9 +275,15 @@ class _SignupScreenState extends State<SignupScreen> {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({required this.role, required this.client, super.key});
+  const HomeScreen({
+    required this.role,
+    required this.client,
+    required this.notificationService,
+    super.key,
+  });
   final UserRole role;
   final SupabaseClient client;
+  final PushNotificationService notificationService;
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -281,9 +293,37 @@ class _HomeScreenState extends State<HomeScreen> {
   int _ordersRevision = 0;
 
   @override
+  void initState() {
+    super.initState();
+    widget.notificationService.syncForCurrentSession();
+  }
+
+  void _openNotificationChat(NotificationDestination destination) {
+    if (!mounted) return;
+    setState(() => index = 1);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OrderChatPage(
+          repository: SupabaseChatRepository(
+            widget.client,
+            dispatcher: SupabaseNotificationDispatcher(widget.client),
+          ),
+          orderId: destination.orderId,
+          title: widget.role == UserRole.customer
+              ? destination.kitchenName ?? 'Kitchen chat'
+              : 'Chat with Customer',
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final orderRepository = SupabaseOrderRepository(widget.client);
-    final chatRepository = SupabaseChatRepository(widget.client);
+    final chatRepository = SupabaseChatRepository(
+      widget.client,
+      dispatcher: SupabaseNotificationDispatcher(widget.client),
+    );
     final riderRepository = SupabaseRiderDeliveryRepository(widget.client);
     final pages = switch (widget.role) {
       UserRole.customer => [
@@ -304,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
           repository: orderRepository,
           chatRepository: chatRepository,
         ),
-        const ProfilePage(),
+        ProfilePage(notificationService: widget.notificationService),
       ],
       UserRole.owner => [
         KitchenPage.supabase(Supabase.instance.client),
@@ -312,12 +352,12 @@ class _HomeScreenState extends State<HomeScreen> {
           repository: SupabaseKitchenOrderRepository(widget.client),
           chatRepository: chatRepository,
         ),
-        const ProfilePage(),
+        ProfilePage(notificationService: widget.notificationService),
       ],
       UserRole.rider => [
         RiderDeliveriesPage(repository: riderRepository),
         RiderEarningsPage(repository: riderRepository),
-        const ProfilePage(),
+        ProfilePage(notificationService: widget.notificationService),
       ],
     };
     final labels = switch (widget.role) {
@@ -325,30 +365,35 @@ class _HomeScreenState extends State<HomeScreen> {
       UserRole.owner => const ['My Kitchen', 'Orders', 'Profile'],
       UserRole.rider => const ['Deliveries', 'Earnings', 'Profile'],
     };
-    return Scaffold(
-      appBar: AppBar(title: Text(labels[index])),
-      body: pages[index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (v) => setState(() => index = v),
-        destinations: [
-          NavigationDestination(
-            icon: Icon(
-              widget.role == UserRole.rider
-                  ? Icons.delivery_dining
-                  : Icons.restaurant,
+    return NotificationNavigationHandler(
+      service: widget.notificationService,
+      chatEnabled: widget.role != UserRole.rider,
+      onOpenChat: _openNotificationChat,
+      child: Scaffold(
+        appBar: AppBar(title: Text(labels[index])),
+        body: pages[index],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (v) => setState(() => index = v),
+          destinations: [
+            NavigationDestination(
+              icon: Icon(
+                widget.role == UserRole.rider
+                    ? Icons.delivery_dining
+                    : Icons.restaurant,
+              ),
+              label: labels[0],
             ),
-            label: labels[0],
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.receipt_long),
-            label: labels[1],
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            label: labels[2],
-          ),
-        ],
+            NavigationDestination(
+              icon: const Icon(Icons.receipt_long),
+              label: labels[1],
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.person_outline),
+              label: labels[2],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -375,14 +420,23 @@ class EarningsPage extends StatelessWidget {
 }
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({required this.notificationService, super.key});
+  final PushNotificationService notificationService;
   @override
-  Widget build(BuildContext context) => Center(
-    child: FilledButton.tonalIcon(
-      onPressed: () => Supabase.instance.client.auth.signOut(),
-      icon: const Icon(Icons.logout),
-      label: const Text('Sign out'),
-    ),
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(16),
+    children: [
+      NotificationSettingsCard(service: notificationService),
+      const SizedBox(height: 12),
+      FilledButton.tonalIcon(
+        onPressed: () async {
+          await notificationService.unregisterCurrentDevice();
+          await Supabase.instance.client.auth.signOut();
+        },
+        icon: const Icon(Icons.logout),
+        label: const Text('Sign out'),
+      ),
+    ],
   );
 }
 
