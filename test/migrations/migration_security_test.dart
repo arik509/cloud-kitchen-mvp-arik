@@ -219,4 +219,47 @@ void main() {
     expect(sql, isNot(contains('truncate')));
     expect(sql, isNot(contains('drop table')));
   });
+
+  test('Phase 5 chat migration derives participants and prevents spoofing', () {
+    final sql = File(
+      'supabase/migrations/20260813211925_secure_order_chat.sql',
+    ).readAsStringSync().toLowerCase();
+    expect(sql, contains('alter table public.chats enable row level security'));
+    expect(
+      sql,
+      contains('alter table public.messages enable row level security'),
+    );
+    expect(sql, contains('order participants read chats'));
+    expect(sql, contains('order participants read messages'));
+    expect(sql, contains('o.customer_id = (select auth.uid())'));
+    expect(sql, contains('k.owner_id = (select auth.uid())'));
+    expect(
+      sql,
+      contains("o.status in ('pending', 'accepted', 'preparing', 'ready')"),
+    );
+    expect(sql, contains('function public.open_order_chat'));
+    expect(sql, contains('function public.send_order_chat_message'));
+    expect(sql, contains('on conflict on constraint chats_order_id_key'));
+    expect(sql, contains('v_user_id uuid := auth.uid()'));
+    expect(sql, contains('values (p_chat_id, v_user_id, v_text)'));
+    expect(sql, contains('char_length(v_text) > 1000'));
+    expect(
+      sql,
+      contains('revoke all on table public.messages from anon, authenticated'),
+    );
+    expect(sql, isNot(contains('create table')));
+    expect(sql, isNot(contains('truncate')));
+    expect(sql, isNot(contains('drop table')));
+  });
+
+  test('Phase 5 corrective migration safely qualifies the chat upsert', () {
+    final sql = File(
+      'supabase/migrations/20260813213343_fix_open_order_chat_conflict.sql',
+    ).readAsStringSync().toLowerCase();
+    expect(sql, contains('create or replace function public.open_order_chat'));
+    expect(sql, contains('on conflict on constraint chats_order_id_key'));
+    expect(sql, contains('set search_path = pg_catalog'));
+    expect(sql, isNot(contains('create table')));
+    expect(sql, isNot(contains('drop table')));
+  });
 }
