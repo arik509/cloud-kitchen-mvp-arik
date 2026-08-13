@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 
+import '../../../core/location/location_models.dart';
 import '../../kitchen/domain/kitchen.dart';
-import 'customer_location.dart';
 import 'nearby_kitchen.dart';
 
 const defaultNearbyKitchenRadiusKm = 10.0;
 
-double haversineDistanceKm(CustomerLocation origin, CustomerLocation target) {
+double haversineDistanceKm(GeoCoordinates origin, GeoCoordinates target) {
   const earthRadiusKm = 6371.0;
   final latitudeDelta = _radians(target.latitude - origin.latitude);
   final longitudeDelta = _radians(target.longitude - origin.longitude);
@@ -22,13 +22,14 @@ double haversineDistanceKm(CustomerLocation origin, CustomerLocation target) {
 }
 
 List<NearbyKitchen> nearbyKitchens({
-  required CustomerLocation origin,
+  required GeoCoordinates origin,
   required List<Kitchen> kitchens,
   required Map<String, KitchenImageReference> representativeImages,
   double radiusKm = defaultNearbyKitchenRadiusKm,
 }) {
   final result = <NearbyKitchen>[];
   for (final kitchen in kitchens) {
+    if (!kitchen.isActive) continue;
     final latitude = kitchen.latitude;
     final longitude = kitchen.longitude;
     if (latitude == null ||
@@ -41,7 +42,7 @@ List<NearbyKitchen> nearbyKitchens({
     }
     final distance = haversineDistanceKm(
       origin,
-      CustomerLocation(latitude: latitude, longitude: longitude),
+      GeoCoordinates(latitude: latitude, longitude: longitude),
     );
     if (distance > radiusKm) continue;
     final image = representativeImages[kitchen.id];
@@ -51,6 +52,7 @@ List<NearbyKitchen> nearbyKitchens({
         distanceKm: distance,
         representativeImagePath: image?.path,
         representativeImageUrl: image?.url,
+        representativeImageBucket: image?.bucket ?? KitchenImageBucket.menu,
       ),
     );
   }

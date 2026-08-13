@@ -2,19 +2,22 @@ import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
 
-import '../domain/customer_location.dart';
+import 'location_models.dart';
 
-abstract interface class CustomerLocationService {
-  Future<CustomerLocation> determineLocation();
+/// Provides device coordinates without coupling callers to a specific UI.
+/// A future map picker can implement a separate coordinate source and return
+/// the same [GeoCoordinates] value.
+abstract interface class LocationService {
+  Future<GeoCoordinates> determineLocation();
 
   Future<bool> openLocationSettings();
 }
 
-class GeolocatorCustomerLocationService implements CustomerLocationService {
-  const GeolocatorCustomerLocationService();
+class GeolocatorLocationService implements LocationService {
+  const GeolocatorLocationService();
 
   @override
-  Future<CustomerLocation> determineLocation() async {
+  Future<GeoCoordinates> determineLocation() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
         throw const LocationException(
@@ -30,7 +33,7 @@ class GeolocatorCustomerLocationService implements CustomerLocationService {
       if (permission == LocationPermission.denied) {
         throw const LocationException(
           LocationFailureCode.denied,
-          'Location permission was denied. Allow it to find nearby kitchens.',
+          'Location permission was denied. Allow it and retry.',
         );
       }
       if (permission == LocationPermission.deniedForever) {
@@ -46,7 +49,7 @@ class GeolocatorCustomerLocationService implements CustomerLocationService {
           timeLimit: Duration(seconds: 15),
         ),
       );
-      return CustomerLocation(
+      return GeoCoordinates(
         latitude: position.latitude,
         longitude: position.longitude,
       );
@@ -54,8 +57,8 @@ class GeolocatorCustomerLocationService implements CustomerLocationService {
       rethrow;
     } on TimeoutException {
       throw const LocationException(
-        LocationFailureCode.unavailable,
-        'Your location request timed out. Check location access and retry.',
+        LocationFailureCode.timeout,
+        'The location request timed out. Check location access and retry.',
       );
     } on LocationServiceDisabledException {
       throw const LocationException(
@@ -65,12 +68,12 @@ class GeolocatorCustomerLocationService implements CustomerLocationService {
     } on PermissionDeniedException {
       throw const LocationException(
         LocationFailureCode.denied,
-        'Location permission was denied. Allow it to find nearby kitchens.',
+        'Location permission was denied. Allow it and retry.',
       );
     } catch (_) {
       throw const LocationException(
         LocationFailureCode.unavailable,
-        'Your location is unavailable right now. Check your connection and retry.',
+        'Location is unavailable right now. Check your connection and retry.',
       );
     }
   }

@@ -1,11 +1,12 @@
 import 'dart:async';
 
+import 'package:cloud_kitchen_mvp/core/location/location_models.dart';
+import 'package:cloud_kitchen_mvp/core/location/location_service.dart';
 import 'package:cloud_kitchen_mvp/features/customer/data/customer_catalog_repository.dart';
-import 'package:cloud_kitchen_mvp/features/customer/data/customer_location_service.dart';
-import 'package:cloud_kitchen_mvp/features/customer/domain/customer_location.dart';
 import 'package:cloud_kitchen_mvp/features/customer/domain/nearby_kitchen.dart';
 import 'package:cloud_kitchen_mvp/features/customer/presentation/customer_discovery_page.dart';
 import 'package:cloud_kitchen_mvp/features/kitchen/domain/kitchen.dart';
+import 'package:cloud_kitchen_mvp/features/kitchen/data/kitchen_image_repository.dart';
 import 'package:cloud_kitchen_mvp/features/menu/data/menu_image_repository.dart';
 import 'package:cloud_kitchen_mvp/features/menu/domain/menu_item.dart';
 import 'package:cloud_kitchen_mvp/features/orders/data/order_repository.dart';
@@ -19,7 +20,7 @@ void main() {
   testWidgets(
     'shows loading then nearest kitchens with distance and image fallback',
     (tester) async {
-      final location = Completer<CustomerLocation>();
+      final location = Completer<GeoCoordinates>();
       await tester.pumpWidget(
         _app(
           locationService: FakeLocationService(result: location.future),
@@ -29,7 +30,7 @@ void main() {
       expect(find.byKey(const Key('discovery-loading')), findsOneWidget);
 
       location.complete(
-        const CustomerLocation(latitude: 23.8103, longitude: 90.4125),
+        const GeoCoordinates(latitude: 23.8103, longitude: 90.4125),
       );
       await tester.pumpAndSettle();
 
@@ -46,9 +47,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         locationService: FakeLocationService(
-          result: Future.value(
-            const CustomerLocation(latitude: 0, longitude: 0),
-          ),
+          result: Future.value(const GeoCoordinates(latitude: 0, longitude: 0)),
         ),
         catalog: FakeCatalog(kitchens: const [_kitchen]),
       ),
@@ -86,7 +85,7 @@ const _kitchen = Kitchen(
 );
 
 Widget _app({
-  required CustomerLocationService locationService,
+  required LocationService locationService,
   required CustomerCatalogRepository catalog,
 }) => MaterialApp(
   home: Scaffold(
@@ -94,19 +93,20 @@ Widget _app({
       locationService: locationService,
       catalogRepository: catalog,
       imageRepository: FakeImageRepository(),
+      kitchenImageRepository: FakeKitchenImageRepository(),
       walletRepository: FakeWalletRepository(),
       orderRepository: FakeOrderRepository(),
     ),
   ),
 );
 
-class FakeLocationService implements CustomerLocationService {
+class FakeLocationService implements LocationService {
   FakeLocationService({required this.result});
 
-  final Future<CustomerLocation> result;
+  final Future<GeoCoordinates> result;
 
   @override
-  Future<CustomerLocation> determineLocation() => result;
+  Future<GeoCoordinates> determineLocation() => result;
 
   @override
   Future<bool> openLocationSettings() async => false;
@@ -142,6 +142,21 @@ class FakeImageRepository implements MenuImageRepository {
     required String ownerId,
     required String kitchenId,
     required String menuItemId,
+    required PickedMenuImage image,
+  }) async => 'path';
+}
+
+class FakeKitchenImageRepository implements KitchenImageRepository {
+  @override
+  Future<void> delete(String path) async {}
+
+  @override
+  String publicUrl(String path) => 'https://kitchens.example.test/$path';
+
+  @override
+  Future<String> upload({
+    required String ownerId,
+    required String kitchenId,
     required PickedMenuImage image,
   }) async => 'path';
 }

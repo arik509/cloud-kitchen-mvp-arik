@@ -1,5 +1,5 @@
-class CustomerLocation {
-  const CustomerLocation({required this.latitude, required this.longitude});
+class GeoCoordinates {
+  const GeoCoordinates({required this.latitude, required this.longitude});
 
   final double latitude;
   final double longitude;
@@ -10,6 +10,7 @@ enum LocationFailureCode {
   permanentlyDenied,
   servicesDisabled,
   unavailable,
+  timeout,
 }
 
 class LocationException implements Exception {

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/location/location_models.dart';
+import '../../../core/location/location_service.dart';
+import '../../kitchen/data/kitchen_image_repository.dart';
 import '../../menu/data/menu_image_repository.dart';
 import '../../menu/presentation/menu_image_view.dart';
 import '../../orders/data/order_repository.dart';
 import '../../wallet/data/wallet_repository.dart';
 import '../data/customer_catalog_repository.dart';
-import '../data/customer_location_service.dart';
-import '../domain/customer_location.dart';
 import '../domain/nearby_kitchen.dart';
 import '../domain/nearby_kitchen_service.dart';
 import 'customer_menu_page.dart';
@@ -16,6 +17,7 @@ class CustomerDiscoveryPage extends StatefulWidget {
     required this.locationService,
     required this.catalogRepository,
     required this.imageRepository,
+    required this.kitchenImageRepository,
     required this.walletRepository,
     required this.orderRepository,
     this.radiusKm = defaultNearbyKitchenRadiusKm,
@@ -23,9 +25,10 @@ class CustomerDiscoveryPage extends StatefulWidget {
     super.key,
   });
 
-  final CustomerLocationService locationService;
+  final LocationService locationService;
   final CustomerCatalogRepository catalogRepository;
   final MenuImageRepository imageRepository;
+  final KitchenImageRepository kitchenImageRepository;
   final WalletRepository walletRepository;
   final OrderRepository orderRepository;
   final double radiusKm;
@@ -136,7 +139,13 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
                   child: Row(
                     children: [
                       MenuImageView(
-                        imageRepository: widget.imageRepository,
+                        imageRepository:
+                            nearby.representativeImageBucket ==
+                                KitchenImageBucket.kitchen
+                            ? KitchenImageViewAdapter(
+                                widget.kitchenImageRepository,
+                              )
+                            : widget.imageRepository,
                         imagePath: nearby.representativeImagePath,
                         imageUrl: nearby.representativeImageUrl,
                         size: 88,
@@ -188,6 +197,7 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
             'Location permission blocked',
           LocationFailureCode.servicesDisabled => 'Location is turned off',
           LocationFailureCode.unavailable => 'Location unavailable',
+          LocationFailureCode.timeout => 'Location request timed out',
         },
         message: error.message,
         actionLabel: settings ? 'Open settings' : 'Retry',
@@ -203,6 +213,26 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
       onAction: _retry,
     );
   }
+}
+
+class KitchenImageViewAdapter implements MenuImageRepository {
+  const KitchenImageViewAdapter(this.repository);
+
+  final KitchenImageRepository repository;
+
+  @override
+  Future<void> delete(String path) => repository.delete(path);
+
+  @override
+  String publicUrl(String path) => repository.publicUrl(path);
+
+  @override
+  Future<String> upload({
+    required String ownerId,
+    required String kitchenId,
+    required String menuItemId,
+    required PickedMenuImage image,
+  }) => repository.upload(ownerId: ownerId, kitchenId: kitchenId, image: image);
 }
 
 class _DiscoveryMessage extends StatelessWidget {

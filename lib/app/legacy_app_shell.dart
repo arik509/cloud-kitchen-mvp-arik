@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/location/location_service.dart';
 import '../features/customer/data/customer_catalog_repository.dart';
-import '../features/customer/data/customer_location_service.dart';
 import '../features/customer/presentation/customer_discovery_page.dart';
+import '../features/kitchen/data/kitchen_image_repository.dart';
 import '../features/kitchen/presentation/kitchen_page.dart';
 import '../features/menu/data/menu_image_repository.dart';
 import '../features/orders/data/order_repository.dart';
@@ -279,9 +280,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final pages = switch (widget.role) {
       UserRole.customer => [
         CustomerDiscoveryPage(
-          locationService: const GeolocatorCustomerLocationService(),
+          locationService: const GeolocatorLocationService(),
           catalogRepository: SupabaseCustomerCatalogRepository(widget.client),
           imageRepository: SupabaseMenuImageRepository(widget.client),
+          kitchenImageRepository: SupabaseKitchenImageRepository(widget.client),
           walletRepository: SupabaseWalletRepository(widget.client),
           orderRepository: orderRepository,
           onOrderPlaced: () => setState(() {

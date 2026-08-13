@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/location/location_service.dart';
 import '../../menu/application/menu_item_workflow.dart';
 import '../../menu/data/menu_image_repository.dart';
 import '../../menu/data/menu_repository.dart';
 import '../../menu/domain/menu_item.dart';
 import '../../menu/presentation/menu_image_view.dart';
 import '../../menu/presentation/menu_item_dialog.dart';
+import '../application/kitchen_workflow.dart';
+import '../data/kitchen_image_repository.dart';
 import '../data/kitchen_repository.dart';
 import '../domain/kitchen.dart';
-import 'kitchen_dialog.dart';
+import 'kitchen_form_dialog.dart';
 
 class KitchenPage extends StatefulWidget {
   const KitchenPage({
@@ -18,6 +21,8 @@ class KitchenPage extends StatefulWidget {
     required this.menuRepository,
     required this.imageRepository,
     required this.imagePicker,
+    required this.kitchenImageRepository,
+    required this.locationService,
     super.key,
   });
 
@@ -29,6 +34,8 @@ class KitchenPage extends StatefulWidget {
         menuRepository: SupabaseMenuRepository(client),
         imageRepository: SupabaseMenuImageRepository(client),
         imagePicker: PlatformMenuImagePicker(),
+        kitchenImageRepository: SupabaseKitchenImageRepository(client),
+        locationService: const GeolocatorLocationService(),
       );
 
   final String ownerId;
@@ -36,6 +43,8 @@ class KitchenPage extends StatefulWidget {
   final MenuRepository menuRepository;
   final MenuImageRepository imageRepository;
   final MenuImagePicker imagePicker;
+  final KitchenImageRepository kitchenImageRepository;
+  final LocationService locationService;
 
   @override
   State<KitchenPage> createState() => _KitchenPageState();
@@ -51,6 +60,11 @@ class _KitchenPageState extends State<KitchenPage> {
   MenuItemWorkflow get _workflow => MenuItemWorkflow(
     menuRepository: widget.menuRepository,
     imageRepository: widget.imageRepository,
+  );
+
+  KitchenWorkflow get _kitchenWorkflow => KitchenWorkflow(
+    kitchenRepository: widget.kitchenRepository,
+    imageRepository: widget.kitchenImageRepository,
   );
 
   @override
@@ -85,13 +99,51 @@ class _KitchenPageState extends State<KitchenPage> {
   }
 
   Future<void> _createKitchen() async {
-    final draft = await showDialog<KitchenDraft>(
+    final result = await showDialog<KitchenFormResult>(
       context: context,
-      builder: (_) => const KitchenDialog(),
+      builder: (_) => KitchenFormDialog(
+        locationService: widget.locationService,
+        imagePicker: widget.imagePicker,
+      ),
     );
-    if (draft == null) return;
+    if (result == null) return;
     await _mutate(() async {
-      await widget.kitchenRepository.create(widget.ownerId, draft);
+      try {
+        await _kitchenWorkflow.create(
+          ownerId: widget.ownerId,
+          draft: result.draft,
+          image: result.image,
+        );
+      } on KitchenCreatedWithoutImageException {
+        _message(
+          'Kitchen saved, but the image upload failed. Retry by editing it.',
+        );
+      } finally {
+        await _load();
+      }
+    });
+  }
+
+  Future<void> _editKitchen() async {
+    final kitchen = _kitchen;
+    if (kitchen == null) return;
+    final result = await showDialog<KitchenFormResult>(
+      context: context,
+      builder: (_) => KitchenFormDialog(
+        kitchen: kitchen,
+        existingImageUrl: _kitchenImageUrl(kitchen),
+        locationService: widget.locationService,
+        imagePicker: widget.imagePicker,
+      ),
+    );
+    if (result == null) return;
+    await _mutate(() async {
+      await _kitchenWorkflow.update(
+        ownerId: widget.ownerId,
+        original: kitchen,
+        draft: result.draft,
+        replacementImage: result.image,
+      );
       await _load();
     });
   }
@@ -198,6 +250,13 @@ class _KitchenPageState extends State<KitchenPage> {
         : widget.imageRepository.publicUrl(path);
   }
 
+  String? _kitchenImageUrl(Kitchen kitchen) {
+    final path = kitchen.imagePath;
+    return path == null || path.isEmpty
+        ? null
+        : widget.kitchenImageRepository.publicUrl(path);
+  }
+
   void _message(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -207,6 +266,7 @@ class _KitchenPageState extends State<KitchenPage> {
     KitchenRepositoryException(:final message) => message,
     MenuRepositoryException(:final message) => message,
     MenuImageRepositoryException(:final message) => message,
+    KitchenImageRepositoryException(:final message) => message,
     _ => 'Something went wrong. Check your connection and try again.',
   };
 
@@ -242,6 +302,7 @@ class _KitchenPageState extends State<KitchenPage> {
     }
     if (_kitchen == null) {
       return Center(
+        key: const Key('kitchen-setup-empty'),
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -250,16 +311,19 @@ class _KitchenPageState extends State<KitchenPage> {
               const Icon(Icons.storefront, size: 72),
               const SizedBox(height: 14),
               const Text(
-                'Create your kitchen first',
+                'Set Up Your Kitchen',
                 style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text('Your menu will be connected to this kitchen.'),
+              const Text(
+                'Add your kitchen details and current location, then build your menu.',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 18),
               FilledButton.icon(
                 onPressed: _mutating ? null : _createKitchen,
-                icon: const Icon(Icons.add),
-                label: const Text('Create kitchen'),
+                icon: const Icon(Icons.storefront_outlined),
+                label: const Text('Set Up Your Kitchen'),
               ),
             ],
           ),
@@ -274,11 +338,23 @@ class _KitchenPageState extends State<KitchenPage> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                _kitchen!.name,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              Text(_kitchen!.address),
+              _kitchenSummary(_kitchen!),
+              if (_kitchen!.latitude == null || _kitchen!.longitude == null)
+                Card(
+                  key: const Key('kitchen-location-missing'),
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: ListTile(
+                    leading: const Icon(Icons.location_off_outlined),
+                    title: const Text('Add your kitchen location'),
+                    subtitle: const Text(
+                      'Customers cannot find this kitchen in nearby results yet.',
+                    ),
+                    trailing: TextButton(
+                      onPressed: _mutating ? null : _editKitchen,
+                      child: const Text('Add location'),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 18),
               Row(
                 children: [
@@ -309,6 +385,58 @@ class _KitchenPageState extends State<KitchenPage> {
       ],
     );
   }
+
+  Widget _kitchenSummary(Kitchen kitchen) => Card(
+    key: const Key('kitchen-summary'),
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _KitchenHeaderImage(imageUrl: _kitchenImageUrl(kitchen)),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      kitchen.name,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    Text(kitchen.address),
+                    const SizedBox(height: 8),
+                    Chip(
+                      avatar: Icon(
+                        kitchen.isActive
+                            ? Icons.check_circle
+                            : Icons.pause_circle,
+                        size: 18,
+                      ),
+                      label: Text(kitchen.isActive ? 'Active' : 'Inactive'),
+                    ),
+                    Text(
+                      kitchen.latitude != null && kitchen.longitude != null
+                          ? 'Location added'
+                          : 'Location not added',
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.tonalIcon(
+                key: const Key('edit-kitchen-button'),
+                onPressed: _mutating ? null : _editKitchen,
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Edit'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _menuCard(MenuItem item) => Card(
     child: ListTile(
@@ -345,5 +473,37 @@ class _KitchenPageState extends State<KitchenPage> {
         ],
       ),
     ),
+  );
+}
+
+class _KitchenHeaderImage extends StatelessWidget {
+  const _KitchenHeaderImage({this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl;
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        height: 190,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const _KitchenHeaderFallback(),
+      );
+    }
+    return const _KitchenHeaderFallback();
+  }
+}
+
+class _KitchenHeaderFallback extends StatelessWidget {
+  const _KitchenHeaderFallback();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('kitchen-image-fallback'),
+    height: 190,
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    child: const Icon(Icons.storefront_outlined, size: 64),
   );
 }

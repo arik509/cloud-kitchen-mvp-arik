@@ -22,7 +22,10 @@ class SupabaseCustomerCatalogRepository implements CustomerCatalogRepository {
     try {
       final rows = await _client
           .from('kitchens')
-          .select('id,owner_id,name,address,latitude,longitude')
+          .select(
+            'id,owner_id,name,address,latitude,longitude,image_path,is_active',
+          )
+          .eq('is_active', true)
           .not('latitude', 'is', null)
           .not('longitude', 'is', null);
       return rows.map(Kitchen.fromMap).toList(growable: false);
@@ -34,12 +37,27 @@ class SupabaseCustomerCatalogRepository implements CustomerCatalogRepository {
   @override
   Future<Map<String, KitchenImageReference>> fetchRepresentativeImages() async {
     try {
+      final kitchenRows = await _client
+          .from('kitchens')
+          .select('id,image_path')
+          .eq('is_active', true)
+          .not('image_path', 'is', null);
+      final images = <String, KitchenImageReference>{};
+      for (final row in kitchenRows) {
+        final path = _optionalText(row['image_path']);
+        if (path != null) {
+          images[row['id'] as String] = KitchenImageReference(
+            path: path,
+            bucket: KitchenImageBucket.kitchen,
+          );
+        }
+      }
+
       final rows = await _client
           .from('menu_items')
           .select('kitchen_id,image_path,image_url,created_at')
           .eq('is_available', true)
           .order('created_at', ascending: false);
-      final images = <String, KitchenImageReference>{};
       for (final row in rows) {
         final kitchenId = row['kitchen_id'] as String;
         if (images.containsKey(kitchenId)) continue;
