@@ -135,4 +135,44 @@ void main() {
       expect(sql, contains("'order_debit'"));
     },
   );
+
+  test('My Kitchen migration is incremental and owner scoped', () {
+    final sql = File(
+      'supabase/migrations/20260813181738_my_kitchen_images_and_status.sql',
+    ).readAsStringSync().toLowerCase();
+
+    expect(sql, contains('add column if not exists image_path text'));
+    expect(sql, contains('add column if not exists is_active boolean'));
+    expect(sql, contains("'kitchen-images'"));
+    expect(sql, contains('5242880'));
+    expect(sql, contains("array['image/jpeg', 'image/png', 'image/webp']"));
+    expect(sql, isNot(contains('create table public.kitchens')));
+    expect(sql, isNot(contains('create type')));
+    expect(sql, isNot(contains('create trigger')));
+    expect(sql, contains('for select\n      to public'));
+    expect(sql, contains('for insert\n      to authenticated'));
+    expect(sql, contains('for update\n      to authenticated'));
+    expect(sql, contains('for delete\n      to authenticated'));
+    expect(
+      sql,
+      contains(
+        '(storage.foldername(storage.objects.name))[1] =\n'
+        '          (select auth.uid())::text',
+      ),
+    );
+    expect(sql, contains("p.role = 'kitchen_owner'::public.user_role"));
+    expect(sql, contains('k.owner_id = p.id'));
+    expect(
+      sql,
+      contains(
+        'k.id::text =\n'
+        '              (storage.foldername(storage.objects.name))[2]',
+      ),
+    );
+    expect(sql, isNot(contains('storage.foldername(name)')));
+    expect(
+      RegExp(r'(?<!storage\.objects\.)\bbucket_id\b').hasMatch(sql),
+      isFalse,
+    );
+  });
 }
