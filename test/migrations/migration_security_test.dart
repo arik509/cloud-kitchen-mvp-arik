@@ -262,4 +262,39 @@ void main() {
     expect(sql, isNot(contains('create table')));
     expect(sql, isNot(contains('drop table')));
   });
+
+  test('Phase 6 rider migration is role-scoped, atomic, and incremental', () {
+    final sql = File(
+      'supabase/migrations/20260813223000_secure_rider_delivery_flow.sql',
+    ).readAsStringSync().toLowerCase();
+
+    expect(sql, contains('function public.list_available_deliveries'));
+    expect(sql, contains('function public.list_my_rider_deliveries'));
+    expect(sql, contains('function public.claim_delivery'));
+    expect(sql, contains('function public.update_rider_delivery_status'));
+    expect(sql, contains('v_rider_id uuid := auth.uid()'));
+    expect(sql, contains("p.role = 'rider'::public.user_role"));
+    expect(sql, contains('for update'));
+    expect(sql, contains('delivery_already_claimed'));
+    expect(sql, contains('v_existing_rider is not null'));
+    expect(sql, contains('v_assigned_rider is distinct from v_rider_id'));
+    expect(
+      sql,
+      contains("v_current_status = 'rider_assigned'::public.order_status and"),
+    );
+    expect(
+      sql,
+      contains("v_current_status = 'picked_up'::public.order_status and"),
+    );
+    expect(sql, contains("v_target_status = 'delivered'::public.order_status"));
+    expect(sql, contains("v_current_status = 'ready'::public.order_status"));
+    expect(sql, contains('set search_path = pg_catalog'));
+    expect(sql, contains('revoke all on table public.orders'));
+    expect(sql, isNot(contains('create table')));
+    expect(sql, isNot(contains('create type')));
+    expect(sql, isNot(contains('alter type')));
+    expect(sql, isNot(contains('truncate')));
+    expect(sql, isNot(contains('delete from')));
+    expect(sql, isNot(contains('drop table')));
+  });
 }
