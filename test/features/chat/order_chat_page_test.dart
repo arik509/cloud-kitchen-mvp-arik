@@ -82,6 +82,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('chat-error')), findsOneWidget);
   });
+
+  testWidgets('notification failure does not roll back a sent chat message', (
+    tester,
+  ) async {
+    final repository = FakeChatRepository(
+      sendResponse: Future.value(
+        ChatMessage(
+          id: 'stored-message',
+          chatId: 'chat-1',
+          senderId: 'me',
+          text: 'Still stored',
+          createdAt: DateTime.utc(2026, 8, 14),
+        ),
+      ),
+    );
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('chat-input')), 'Still stored');
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(repository.sendCalls, 1);
+    expect(find.byType(SnackBar), findsNothing);
+  });
 }
 
 Widget _app(ChatRepository repository) => MaterialApp(

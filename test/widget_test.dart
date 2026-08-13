@@ -4,6 +4,7 @@ import 'package:cloud_kitchen_mvp/features/auth/data/auth_repository.dart';
 import 'package:cloud_kitchen_mvp/features/profile/data/profile_repository.dart';
 import 'package:cloud_kitchen_mvp/features/profile/domain/user_role.dart';
 import 'package:cloud_kitchen_mvp/features/profile/presentation/role_router.dart';
+import 'package:cloud_kitchen_mvp/features/notifications/application/push_notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,6 +33,7 @@ void main() {
         CloudKitchenApp(
           authRepository: const FakeAuthRepository(),
           profileRepository: SequenceProfileRepository(const []),
+          notificationService: DisabledPushNotificationService(),
           signedOutBuilder: (_) =>
               const Scaffold(body: Center(child: Text('Test sign in'))),
           roleHomeBuilder: (_, role) => Text(role.name),

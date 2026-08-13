@@ -297,4 +297,38 @@ void main() {
     expect(sql, isNot(contains('delete from')));
     expect(sql, isNot(contains('drop table')));
   });
+
+  test('Phase 7 push migration is private, participant-derived, and safe', () {
+    final sql = File(
+      'supabase/migrations/20260814010619_push_notification_foundation.sql',
+    ).readAsStringSync().toLowerCase();
+
+    expect(sql, contains('create table if not exists public.push_tokens'));
+    expect(
+      sql,
+      contains('alter table public.push_tokens enable row level security'),
+    );
+    expect(sql, contains('(select auth.uid()) = user_id'));
+    expect(sql, contains('constraint push_tokens_token_key unique (token)'));
+    expect(sql, contains('function public.register_push_token'));
+    expect(sql, contains('v_user_id uuid := auth.uid()'));
+    expect(sql, contains('function public.unregister_push_token'));
+    expect(
+      sql,
+      contains('create table if not exists public.notification_events'),
+    );
+    expect(sql, contains('revoke all on table public.notification_events'));
+    expect(
+      sql,
+      contains('constraint notification_events_source_message_key unique'),
+    );
+    expect(sql, contains('v_recipient_id := v_owner_id'));
+    expect(sql, contains('v_recipient_id := v_customer_id'));
+    expect(sql, contains('v_recipient_id is distinct from v_user_id'));
+    expect(sql, contains("'chat_message'"));
+    expect(sql, isNot(contains('p_recipient')));
+    expect(sql, isNot(contains('service_role')));
+    expect(sql, isNot(contains('truncate')));
+    expect(sql, isNot(contains('drop table')));
+  });
 }
