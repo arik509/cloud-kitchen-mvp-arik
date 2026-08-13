@@ -11,12 +11,12 @@ import 'order_ui.dart';
 class MyOrdersPage extends StatefulWidget {
   const MyOrdersPage({
     required this.repository,
-    this.chatRepository,
+    required this.chatRepository,
     super.key,
   });
 
   final OrderRepository repository;
-  final ChatRepository? chatRepository;
+  final ChatRepository chatRepository;
 
   @override
   State<MyOrdersPage> createState() => _MyOrdersPageState();
@@ -157,23 +157,25 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                     Text(order.deliveryAddress),
                     const SizedBox(height: 6),
                     Text(orderTime(order.createdAt)),
-                    if (isOrderChatAvailable(order.status) &&
-                        widget.chatRepository != null) ...[
+                    if (isOrderChatAvailable(order.status)) ...[
                       const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        key: Key('customer-chat-${order.id}'),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderChatPage(
-                              repository: widget.chatRepository!,
-                              orderId: order.id,
-                              title: order.kitchenName,
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          key: Key('customer-chat-${order.id}'),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OrderChatPage(
+                                repository: widget.chatRepository,
+                                orderId: order.id,
+                                title: order.kitchenName,
+                              ),
                             ),
                           ),
+                          icon: const Icon(Icons.chat_bubble_outline),
+                          label: const Text('Chat with Kitchen'),
                         ),
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        label: const Text('Contact Kitchen'),
                       ),
                     ],
                     if (order.status == OrderStatus.rejected) ...[
