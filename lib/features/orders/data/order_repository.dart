@@ -72,8 +72,15 @@ class SupabaseOrderRemoteDataSource implements OrderRemoteDataSource {
   final SupabaseClient _client;
 
   @override
-  Future<Object?> placeOrder(Map<String, dynamic> parameters) =>
-      _client.rpc('place_order', params: parameters);
+  Future<Object?> placeOrder(Map<String, dynamic> parameters) {
+    if (_client.auth.currentUser == null) {
+      throw const OrderRepositoryException(
+        OrderFailureCode.unauthenticated,
+        'Sign in again before placing an order.',
+      );
+    }
+    return _client.rpc('place_order', params: parameters);
+  }
 
   @override
   Future<List<Map<String, dynamic>>> fetchCurrentCustomerOrders() async {
@@ -86,7 +93,11 @@ class SupabaseOrderRemoteDataSource implements OrderRemoteDataSource {
     }
     final rows = await _client
         .from('orders')
-        .select('id,kitchen_id,status,final_price,delivery_address,created_at')
+        .select(
+          'id,kitchen_id,status,final_price,delivery_address,created_at,'
+          'kitchens(name),'
+          'order_items(unit_price,menu_items(name))',
+        )
         .eq('customer_id', userId)
         .order('created_at', ascending: false);
     return rows.map(Map<String, dynamic>.from).toList(growable: false);
@@ -112,7 +123,9 @@ class OrderRepositoryException implements Exception {
   }) {
     final normalized = message.toLowerCase();
     if (normalized.contains('authentication_required') ||
-        normalized.contains('profile_not_found')) {
+        normalized.contains('profile_not_found') ||
+        normalized.contains('jwt expired') ||
+        normalized.contains('not authenticated')) {
       return OrderRepositoryException(
         OrderFailureCode.unauthenticated,
         'Sign in again before placing an order.',

@@ -85,7 +85,15 @@ class SupabaseWalletRemoteDataSource implements WalletRemoteDataSource {
   }
 
   @override
-  Future<Object?> addDemoBalance() => _client.rpc('add_demo_balance');
+  Future<Object?> addDemoBalance() {
+    if (_client.auth.currentUser == null) {
+      throw const WalletRepositoryException(
+        WalletFailureCode.unauthenticated,
+        'Sign in again to use your wallet.',
+      );
+    }
+    return _client.rpc('add_demo_balance');
+  }
 }
 
 enum WalletFailureCode {
@@ -106,7 +114,9 @@ class WalletRepositoryException implements Exception {
   }) {
     final normalized = message.toLowerCase();
     if (normalized.contains('authentication_required') ||
-        normalized.contains('profile_not_found')) {
+        normalized.contains('profile_not_found') ||
+        normalized.contains('jwt expired') ||
+        normalized.contains('not authenticated')) {
       return WalletRepositoryException(
         WalletFailureCode.unauthenticated,
         'Sign in again to use your wallet.',

@@ -46,6 +46,10 @@ void main() {
       WalletFailureCode.capReached,
     );
     expect(
+      WalletRepositoryException.fromBackend(message: 'JWT expired').code,
+      WalletFailureCode.unauthenticated,
+    );
+    expect(
       WalletRepositoryException.fromBackend(
         message: 'internal relation details',
       ).message,

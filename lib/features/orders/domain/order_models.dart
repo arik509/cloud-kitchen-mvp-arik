@@ -61,6 +61,9 @@ class CustomerOrder {
   const CustomerOrder({
     required this.id,
     required this.kitchenId,
+    required this.kitchenName,
+    required this.itemName,
+    required this.itemPrice,
     required this.status,
     required this.finalPrice,
     required this.deliveryAddress,
@@ -69,17 +72,38 @@ class CustomerOrder {
 
   final String id;
   final String kitchenId;
+  final String kitchenName;
+  final String itemName;
+  final double itemPrice;
   final OrderStatus status;
   final double finalPrice;
   final String deliveryAddress;
   final DateTime createdAt;
 
-  factory CustomerOrder.fromMap(Map<String, dynamic> map) => CustomerOrder(
-    id: map['id'] as String,
-    kitchenId: map['kitchen_id'] as String,
-    status: parseOrderStatus(map['status']),
-    finalPrice: (map['final_price'] as num).toDouble(),
-    deliveryAddress: map['delivery_address'] as String,
-    createdAt: DateTime.parse(map['created_at'] as String),
-  );
+  factory CustomerOrder.fromMap(Map<String, dynamic> map) {
+    final kitchen = _firstMap(map['kitchens']);
+    final orderItem = _firstMap(map['order_items']);
+    final menuItem = _firstMap(orderItem?['menu_items']);
+    return CustomerOrder(
+      id: map['id'] as String,
+      kitchenId: map['kitchen_id'] as String,
+      kitchenName: kitchen?['name'] as String? ?? 'Kitchen',
+      itemName: menuItem?['name'] as String? ?? 'Menu item',
+      itemPrice:
+          (orderItem?['unit_price'] as num?)?.toDouble() ??
+          (map['final_price'] as num).toDouble(),
+      status: parseOrderStatus(map['status']),
+      finalPrice: (map['final_price'] as num).toDouble(),
+      deliveryAddress: map['delivery_address'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
+    );
+  }
+}
+
+Map<String, dynamic>? _firstMap(Object? value) {
+  if (value is Map) return Map<String, dynamic>.from(value);
+  if (value is List && value.isNotEmpty && value.first is Map) {
+    return Map<String, dynamic>.from(value.first as Map);
+  }
+  return null;
 }

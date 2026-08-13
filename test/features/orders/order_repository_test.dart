@@ -68,6 +68,13 @@ void main() {
           {
             'id': 'order-1',
             'kitchen_id': 'kitchen-1',
+            'kitchens': {'name': 'Test Kitchen'},
+            'order_items': [
+              {
+                'unit_price': 240,
+                'menu_items': {'name': 'Test Meal'},
+              },
+            ],
             'status': 'pending',
             'final_price': 240,
             'delivery_address': 'Customer address',
@@ -80,6 +87,9 @@ void main() {
       ).fetchCurrentCustomerOrders();
 
       expect(orders.single.id, 'order-1');
+      expect(orders.single.kitchenName, 'Test Kitchen');
+      expect(orders.single.itemName, 'Test Meal');
+      expect(orders.single.itemPrice, 240);
       expect(orders.single.status, OrderStatus.pending);
       expect(orders.single.finalPrice, 240);
     },
@@ -97,6 +107,10 @@ void main() {
         message: 'menu_item_unavailable',
       ).code,
       OrderFailureCode.unavailableItem,
+    );
+    expect(
+      OrderRepositoryException.fromBackend(message: 'JWT expired').code,
+      OrderFailureCode.unauthenticated,
     );
     expect(
       OrderRepositoryException.fromBackend(

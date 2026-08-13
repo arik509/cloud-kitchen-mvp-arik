@@ -9,6 +9,6 @@ Future<void> main() => bootstrap(
     authRepository: SupabaseAuthRepository(client),
     profileRepository: SupabaseProfileRepository(client),
     signedOutBuilder: (_) => const LoginScreen(),
-    roleHomeBuilder: (_, role) => HomeScreen(role: role),
+    roleHomeBuilder: (_, role) => HomeScreen(role: role, client: client),
   ),
 );

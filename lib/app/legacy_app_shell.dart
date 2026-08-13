@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/customer/data/customer_catalog_repository.dart';
+import '../features/customer/data/customer_location_service.dart';
+import '../features/customer/presentation/customer_discovery_page.dart';
 import '../features/kitchen/presentation/kitchen_page.dart';
+import '../features/menu/data/menu_image_repository.dart';
+import '../features/orders/data/order_repository.dart';
+import '../features/orders/presentation/my_orders_page.dart';
 import '../features/profile/domain/user_role.dart';
+import '../features/wallet/data/wallet_repository.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -255,18 +262,39 @@ class _SignupScreenState extends State<SignupScreen> {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({required this.role, super.key});
+  const HomeScreen({required this.role, required this.client, super.key});
   final UserRole role;
+  final SupabaseClient client;
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   int index = 0;
+  int _ordersRevision = 0;
+
   @override
   Widget build(BuildContext context) {
+    final orderRepository = SupabaseOrderRepository(widget.client);
     final pages = switch (widget.role) {
-      UserRole.customer => const [CustomerPage(), OrdersPage(), ProfilePage()],
+      UserRole.customer => [
+        CustomerDiscoveryPage(
+          locationService: const GeolocatorCustomerLocationService(),
+          catalogRepository: SupabaseCustomerCatalogRepository(widget.client),
+          imageRepository: SupabaseMenuImageRepository(widget.client),
+          walletRepository: SupabaseWalletRepository(widget.client),
+          orderRepository: orderRepository,
+          onOrderPlaced: () => setState(() {
+            _ordersRevision++;
+            index = 1;
+          }),
+        ),
+        MyOrdersPage(
+          key: ValueKey(_ordersRevision),
+          repository: orderRepository,
+        ),
+        const ProfilePage(),
+      ],
       UserRole.owner => [
         KitchenPage.supabase(Supabase.instance.client),
         const OrdersPage(),
@@ -306,16 +334,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
-
-class CustomerPage extends StatelessWidget {
-  const CustomerPage({super.key});
-  @override
-  Widget build(BuildContext context) => const _InfoPage(
-    icon: Icons.restaurant,
-    title: 'Nearby kitchens',
-    message: 'Kitchen discovery will appear here.',
-  );
 }
 
 class OrdersPage extends StatelessWidget {
