@@ -175,4 +175,48 @@ void main() {
       isFalse,
     );
   });
+
+  test('Phase 4 order status RPC is owner-scoped and atomically refunds', () {
+    final sql = File(
+      'supabase/migrations/20260813200213_kitchen_order_status.sql',
+    ).readAsStringSync().toLowerCase();
+
+    expect(sql, contains('function public.update_kitchen_order_status'));
+    expect(sql, contains('security definer'));
+    expect(sql, contains('set search_path = pg_catalog'));
+    expect(sql, contains("v_owner_id uuid := auth.uid()"));
+    expect(sql, contains("'kitchen_owner'::public.user_role"));
+    expect(sql, contains('k.owner_id = v_owner_id'));
+    expect(sql, contains('from public.orders o'));
+    expect(sql, contains('for update'));
+    expect(sql, contains('update public.orders'));
+    expect(sql, contains('update public.profiles'));
+    expect(sql, contains('insert into public.wallet_transactions'));
+    expect(sql, contains("wt.kind = 'order_refund'"));
+    expect(sql, contains('wallet_transactions_order_refund_unique_idx'));
+    expect(sql, contains('invalid_order_status_transition'));
+    expect(sql, contains('order_access_denied'));
+    expect(
+      sql,
+      contains(
+        'revoke all on function public.update_kitchen_order_status(uuid, text)\n  from public',
+      ),
+    );
+    expect(
+      sql,
+      contains(
+        'revoke all on function public.update_kitchen_order_status(uuid, text)\n  from anon',
+      ),
+    );
+    expect(
+      sql,
+      contains(
+        'grant execute on function public.update_kitchen_order_status(uuid, text)\n  to authenticated',
+      ),
+    );
+    expect(sql, isNot(contains('alter table public.orders')));
+    expect(sql, isNot(contains('create table')));
+    expect(sql, isNot(contains('truncate')));
+    expect(sql, isNot(contains('drop table')));
+  });
 }
