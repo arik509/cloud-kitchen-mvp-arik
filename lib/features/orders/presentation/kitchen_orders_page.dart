@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../chat/data/chat_repository.dart';
+import '../../chat/presentation/order_chat_page.dart';
 import '../data/kitchen_order_repository.dart';
 import '../domain/order_models.dart';
 import 'order_ui.dart';
@@ -9,9 +11,14 @@ import 'order_ui.dart';
 enum KitchenOrderFilter { newOrders, active, ready, history }
 
 class KitchenOrdersPage extends StatefulWidget {
-  const KitchenOrdersPage({required this.repository, super.key});
+  const KitchenOrdersPage({
+    required this.repository,
+    this.chatRepository,
+    super.key,
+  });
 
   final KitchenOrderRepository repository;
+  final ChatRepository? chatRepository;
 
   @override
   State<KitchenOrdersPage> createState() => _KitchenOrdersPageState();
@@ -279,6 +286,25 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             Text(order.deliveryAddress),
             const SizedBox(height: 6),
             Text(orderTime(order.createdAt)),
+            if (isOrderChatAvailable(order.status) &&
+                widget.chatRepository != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: Key('owner-chat-${order.id}'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OrderChatPage(
+                      repository: widget.chatRepository!,
+                      orderId: order.id,
+                      title: 'Chat with Customer',
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: const Text('Chat with Customer'),
+              ),
+            ],
             if (transitions.isNotEmpty) ...[
               const SizedBox(height: 12),
               if (busy) const LinearProgressIndicator(),

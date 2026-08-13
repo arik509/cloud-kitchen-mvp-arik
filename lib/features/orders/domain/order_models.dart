@@ -35,6 +35,18 @@ String orderStatusValue(OrderStatus status) => switch (status) {
   OrderStatus.delivered => 'delivered',
 };
 
+bool isOrderChatAvailable(OrderStatus status) => switch (status) {
+  OrderStatus.pending ||
+  OrderStatus.accepted ||
+  OrderStatus.preparing ||
+  OrderStatus.ready => true,
+  OrderStatus.rejected ||
+  OrderStatus.awaitingRider ||
+  OrderStatus.riderAssigned ||
+  OrderStatus.pickedUp ||
+  OrderStatus.delivered => false,
+};
+
 class PlaceOrderRequest {
   const PlaceOrderRequest({
     required this.menuItemId,

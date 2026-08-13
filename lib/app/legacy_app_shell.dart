@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/location/location_service.dart';
+import '../features/chat/data/chat_repository.dart';
 import '../features/customer/data/customer_catalog_repository.dart';
 import '../features/customer/presentation/customer_discovery_page.dart';
 import '../features/kitchen/data/kitchen_image_repository.dart';
@@ -279,6 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final orderRepository = SupabaseOrderRepository(widget.client);
+    final chatRepository = SupabaseChatRepository(widget.client);
     final pages = switch (widget.role) {
       UserRole.customer => [
         CustomerDiscoveryPage(
@@ -296,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
         MyOrdersPage(
           key: ValueKey(_ordersRevision),
           repository: orderRepository,
+          chatRepository: chatRepository,
         ),
         const ProfilePage(),
       ],
@@ -303,6 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
         KitchenPage.supabase(Supabase.instance.client),
         KitchenOrdersPage(
           repository: SupabaseKitchenOrderRepository(widget.client),
+          chatRepository: chatRepository,
         ),
         const ProfilePage(),
       ],

@@ -2,14 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../chat/data/chat_repository.dart';
+import '../../chat/presentation/order_chat_page.dart';
 import '../data/order_repository.dart';
 import '../domain/order_models.dart';
 import 'order_ui.dart';
 
 class MyOrdersPage extends StatefulWidget {
-  const MyOrdersPage({required this.repository, super.key});
+  const MyOrdersPage({
+    required this.repository,
+    this.chatRepository,
+    super.key,
+  });
 
   final OrderRepository repository;
+  final ChatRepository? chatRepository;
 
   @override
   State<MyOrdersPage> createState() => _MyOrdersPageState();
@@ -150,6 +157,25 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                     Text(order.deliveryAddress),
                     const SizedBox(height: 6),
                     Text(orderTime(order.createdAt)),
+                    if (isOrderChatAvailable(order.status) &&
+                        widget.chatRepository != null) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        key: Key('customer-chat-${order.id}'),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderChatPage(
+                              repository: widget.chatRepository!,
+                              orderId: order.id,
+                              title: order.kitchenName,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('Contact Kitchen'),
+                      ),
+                    ],
                     if (order.status == OrderStatus.rejected) ...[
                       const SizedBox(height: 8),
                       const Text(
