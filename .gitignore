@@ -66,6 +66,7 @@ key.properties
 credentials*.json
 service-account*.json
 **/google-services.json
+!/android/app/google-services.json
 **/GoogleService-Info.plist
 
 # Symbolication related
