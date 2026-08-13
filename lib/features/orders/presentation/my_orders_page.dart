@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/order_repository.dart';
 import '../domain/order_models.dart';
+import 'order_ui.dart';
 
 class MyOrdersPage extends StatefulWidget {
   const MyOrdersPage({required this.repository, super.key});
@@ -14,19 +17,46 @@ class MyOrdersPage extends StatefulWidget {
 
 class _MyOrdersPageState extends State<MyOrdersPage> {
   late Future<List<CustomerOrder>> _orders;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _orders = widget.repository.fetchCurrentCustomerOrders();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _refresh(silent: true),
+    );
   }
 
-  Future<void> _refresh() async {
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh({bool silent = false}) async {
     final future = widget.repository.fetchCurrentCustomerOrders();
-    setState(() {
-      _orders = future;
-    });
-    await future;
+    if (!mounted) return;
+    if (!silent) {
+      setState(() {
+        _orders = future;
+      });
+    }
+    try {
+      final orders = await future;
+      if (mounted && silent) {
+        setState(() {
+          _orders = Future.value(orders);
+        });
+      }
+    } catch (_) {
+      if (!silent && mounted) {
+        setState(() {
+          _orders = future;
+        });
+      }
+    }
   }
 
   @override
@@ -102,17 +132,31 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        Chip(label: Text(orderStatusLabel(order.status))),
+                        Chip(
+                          backgroundColor: orderStatusColor(
+                            context,
+                            order.status,
+                          ),
+                          label: Text(orderStatusLabel(order.status)),
+                        ),
                       ],
                     ),
                     Text(order.itemName),
                     Text(
-                      'Item ${_currency(order.itemPrice)} · Total ${_currency(order.finalPrice)}',
+                      'Item ${orderCurrency(order.itemPrice)} · '
+                      'Total ${orderCurrency(order.finalPrice)}',
                     ),
                     const SizedBox(height: 6),
                     Text(order.deliveryAddress),
                     const SizedBox(height: 6),
-                    Text(_formatTime(order.createdAt)),
+                    Text(orderTime(order.createdAt)),
+                    if (order.status == OrderStatus.rejected) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Rejected · The full order total was returned to your wallet.',
+                        key: Key('order-refund-message'),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -122,25 +166,4 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
       },
     ),
   );
-}
-
-String orderStatusLabel(OrderStatus status) => switch (status) {
-  OrderStatus.pending => 'Pending',
-  OrderStatus.accepted => 'Accepted',
-  OrderStatus.rejected => 'Rejected',
-  OrderStatus.preparing => 'Preparing',
-  OrderStatus.ready => 'Ready',
-  OrderStatus.awaitingRider => 'Awaiting rider',
-  OrderStatus.riderAssigned => 'Rider assigned',
-  OrderStatus.pickedUp => 'Picked up',
-  OrderStatus.delivered => 'Delivered',
-};
-
-String _currency(double amount) => '৳${amount.toStringAsFixed(2)}';
-
-String _formatTime(DateTime time) {
-  final local = time.toLocal();
-  String two(int value) => value.toString().padLeft(2, '0');
-  return '${local.year}-${two(local.month)}-${two(local.day)} '
-      '${two(local.hour)}:${two(local.minute)}';
 }

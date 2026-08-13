@@ -23,6 +23,18 @@ OrderStatus parseOrderStatus(Object? value) => switch (value) {
   _ => throw FormatException('Unsupported order status: $value'),
 };
 
+String orderStatusValue(OrderStatus status) => switch (status) {
+  OrderStatus.pending => 'pending',
+  OrderStatus.accepted => 'accepted',
+  OrderStatus.rejected => 'rejected',
+  OrderStatus.preparing => 'preparing',
+  OrderStatus.ready => 'ready',
+  OrderStatus.awaitingRider => 'awaiting_rider',
+  OrderStatus.riderAssigned => 'rider_assigned',
+  OrderStatus.pickedUp => 'picked_up',
+  OrderStatus.delivered => 'delivered',
+};
+
 class PlaceOrderRequest {
   const PlaceOrderRequest({
     required this.menuItemId,
@@ -99,6 +111,93 @@ class CustomerOrder {
     );
   }
 }
+
+class KitchenOrder {
+  const KitchenOrder({
+    required this.id,
+    required this.kitchenId,
+    required this.itemName,
+    required this.quantity,
+    required this.unitPrice,
+    required this.status,
+    required this.finalPrice,
+    required this.deliveryAddress,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String kitchenId;
+  final String itemName;
+  final int quantity;
+  final double unitPrice;
+  final OrderStatus status;
+  final double finalPrice;
+  final String deliveryAddress;
+  final DateTime createdAt;
+
+  double get itemTotal => quantity * unitPrice;
+
+  factory KitchenOrder.fromMap(Map<String, dynamic> map) {
+    final orderItem = _firstMap(map['order_items']);
+    final menuItem = _firstMap(orderItem?['menu_items']);
+    return KitchenOrder(
+      id: map['id'] as String,
+      kitchenId: map['kitchen_id'] as String,
+      itemName: menuItem?['name'] as String? ?? 'Menu item',
+      quantity: orderItem?['quantity'] as int? ?? 1,
+      unitPrice:
+          (orderItem?['unit_price'] as num?)?.toDouble() ??
+          (map['final_price'] as num).toDouble(),
+      status: parseOrderStatus(map['status']),
+      finalPrice: (map['final_price'] as num).toDouble(),
+      deliveryAddress: map['delivery_address'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
+    );
+  }
+
+  KitchenOrder copyWith({OrderStatus? status}) => KitchenOrder(
+    id: id,
+    kitchenId: kitchenId,
+    itemName: itemName,
+    quantity: quantity,
+    unitPrice: unitPrice,
+    status: status ?? this.status,
+    finalPrice: finalPrice,
+    deliveryAddress: deliveryAddress,
+    createdAt: createdAt,
+  );
+}
+
+class KitchenOrderStatusResult {
+  const KitchenOrderStatusResult({
+    required this.orderId,
+    required this.status,
+    this.refundedAmount,
+    this.walletBalance,
+  });
+
+  final String orderId;
+  final OrderStatus status;
+  final double? refundedAmount;
+  final double? walletBalance;
+
+  factory KitchenOrderStatusResult.fromRpc(Map<String, dynamic> map) =>
+      KitchenOrderStatusResult(
+        orderId: map['order_id'] as String,
+        status: parseOrderStatus(map['status']),
+        refundedAmount: (map['refunded_amount'] as num?)?.toDouble(),
+        walletBalance: (map['wallet_balance'] as num?)?.toDouble(),
+      );
+}
+
+const kitchenOrderTransitions = <OrderStatus, Set<OrderStatus>>{
+  OrderStatus.pending: {OrderStatus.accepted, OrderStatus.rejected},
+  OrderStatus.accepted: {OrderStatus.preparing},
+  OrderStatus.preparing: {OrderStatus.ready},
+};
+
+Set<OrderStatus> allowedKitchenOrderTransitions(OrderStatus current) =>
+    kitchenOrderTransitions[current] ?? const {};
 
 Map<String, dynamic>? _firstMap(Object? value) {
   if (value is Map) return Map<String, dynamic>.from(value);

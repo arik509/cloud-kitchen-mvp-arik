@@ -67,6 +67,33 @@ void main() {
     expect(find.text('Delivery Road'), findsOneWidget);
     expect(find.textContaining('2026-08-13'), findsOneWidget);
   });
+
+  testWidgets('explains the rejected-order refund', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        FakeOrderRepository([
+          Future.value([
+            CustomerOrder(
+              id: 'order-1',
+              kitchenId: 'kitchen-1',
+              kitchenName: 'Nearby Kitchen',
+              itemName: 'Rice Bowl',
+              itemPrice: 150,
+              status: OrderStatus.rejected,
+              finalPrice: 150,
+              deliveryAddress: 'Delivery Road',
+              createdAt: DateTime.utc(2026, 8, 13),
+            ),
+          ]),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rejected'), findsOneWidget);
+    expect(find.byKey(const Key('order-refund-message')), findsOneWidget);
+    expect(find.textContaining('returned to your wallet'), findsOneWidget);
+  });
 }
 
 Widget _app(OrderRepository repository) => MaterialApp(

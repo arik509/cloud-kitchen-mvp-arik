@@ -7,7 +7,9 @@ import '../features/customer/presentation/customer_discovery_page.dart';
 import '../features/kitchen/data/kitchen_image_repository.dart';
 import '../features/kitchen/presentation/kitchen_page.dart';
 import '../features/menu/data/menu_image_repository.dart';
+import '../features/orders/data/kitchen_order_repository.dart';
 import '../features/orders/data/order_repository.dart';
+import '../features/orders/presentation/kitchen_orders_page.dart';
 import '../features/orders/presentation/my_orders_page.dart';
 import '../features/profile/domain/user_role.dart';
 import '../features/wallet/data/wallet_repository.dart';
@@ -299,7 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
       UserRole.owner => [
         KitchenPage.supabase(Supabase.instance.client),
-        const OrdersPage(),
+        KitchenOrdersPage(
+          repository: SupabaseKitchenOrderRepository(widget.client),
+        ),
         const ProfilePage(),
       ],
       UserRole.rider => const [DeliveriesPage(), EarningsPage(), ProfilePage()],
@@ -336,16 +340,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
-
-class OrdersPage extends StatelessWidget {
-  const OrdersPage({super.key});
-  @override
-  Widget build(BuildContext context) => const _InfoPage(
-    icon: Icons.receipt_long,
-    title: 'No orders yet',
-    message: 'Your live orders will appear here.',
-  );
 }
 
 class DeliveriesPage extends StatelessWidget {
