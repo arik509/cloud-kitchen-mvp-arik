@@ -10,6 +10,7 @@ abstract interface class SettlementRepository {
 abstract interface class SettlementRemoteDataSource {
   Future<Object?> riderEarnings();
   Future<Object?> ownerRevenue();
+  Future<Object?> fallbackRiderDeliveries();
 }
 
 class SupabaseSettlementRepository implements SettlementRepository {
@@ -33,8 +34,28 @@ class SupabaseSettlementRepository implements SettlementRepository {
       // return an empty summary instead of showing an error screen.
       final msg = error.message.toLowerCase();
       if (msg.contains('does not exist') ||
-          msg.contains('could not find') ||
-          msg.contains('rider_role_required')) {
+          msg.contains('could not find')) {
+        try {
+          final fallbackRows = await _rows(_source.fallbackRiderDeliveries());
+          return RiderEarningsSummary(
+            entries: fallbackRows
+                .where((row) => row['status'] == 'delivered')
+                .map((row) {
+                  final gross = (row['final_price'] as num).toDouble();
+                  return RiderEarningEntry(
+                    orderId: row['order_id'] as String,
+                    grossAmount: gross,
+                    riderEarning: gross * 0.10,
+                    createdAt: DateTime.parse(row['created_at'] as String),
+                  );
+                })
+                .toList(growable: false),
+          );
+        } catch (_) {
+          return const RiderEarningsSummary(entries: []);
+        }
+      }
+      if (msg.contains('rider_role_required')) {
         return const RiderEarningsSummary(entries: []);
       }
       throw SettlementException.fromBackend(error.message);
@@ -96,6 +117,12 @@ class SupabaseSettlementRemoteDataSource implements SettlementRemoteDataSource {
   Future<Object?> ownerRevenue() {
     _requireSession();
     return _client.rpc('list_my_owner_settlements');
+  }
+
+  @override
+  Future<Object?> fallbackRiderDeliveries() {
+    _requireSession();
+    return _client.rpc('list_my_rider_deliveries_v3');
   }
 }
 

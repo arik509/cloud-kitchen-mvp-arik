@@ -47,7 +47,7 @@ class OrderReceiptPage extends StatelessWidget {
 
   Future<void> _downloadPdf(BuildContext context) async {
     try {
-      final document = _buildPdfDocument();
+      final document = await _buildPdfDocument();
       await Printing.sharePdf(
         bytes: await document.save(),
         filename: 'FoodCircle-receipt-${_shortId(order.id)}.pdf',
@@ -63,7 +63,7 @@ class OrderReceiptPage extends StatelessWidget {
 
   Future<void> _printPdf(BuildContext context) async {
     try {
-      final document = _buildPdfDocument();
+      final document = await _buildPdfDocument();
       await Printing.layoutPdf(
         onLayout: (_) => document.save(),
         name: 'FoodCircle-receipt-${_shortId(order.id)}',
@@ -77,11 +77,15 @@ class OrderReceiptPage extends StatelessWidget {
     }
   }
 
-  pw.Document _buildPdfDocument() {
+  Future<pw.Document> _buildPdfDocument() async {
     final document = pw.Document();
+    final font = await PdfGoogleFonts.notoSansBengaliRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBengaliBold();
+    
     document.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
+        theme: pw.ThemeData.withFont(base: font, bold: boldFont),
         margin: const pw.EdgeInsets.all(36),
         build: (pw.Context ctx) => _buildPdfReceipt(ctx),
       ),
