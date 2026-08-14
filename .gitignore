@@ -40,6 +40,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/android/build/
 /coverage/
 **/.gradle/
 
@@ -51,6 +52,8 @@ migrate_working_dir/
 .secrets/
 /android/local.properties
 /supabase/.temp/
+/config/dart_define*.json
+!/config/dart_define.example.json
 
 # Secrets, signing material, and generated credential files
 key.properties
@@ -63,6 +66,7 @@ key.properties
 credentials*.json
 service-account*.json
 **/google-services.json
+!/android/app/google-services.json
 **/GoogleService-Info.plist
 
 # Symbolication related

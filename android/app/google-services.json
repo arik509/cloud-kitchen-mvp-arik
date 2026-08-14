@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "260343591844",
+    "project_id": "cloud-kitchen-mvp",
+    "storage_bucket": "cloud-kitchen-mvp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260343591844:android:9deecc78c6ffddb7920731",
+        "android_client_info": {
+          "package_name": "com.cloudkitchen.cloud_kitchen_mvp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDa6JS8lKg3_SvIpxj91SFkaqUvJM9xDrc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
