@@ -17,6 +17,7 @@ import 'order_ui.dart';
 class OrderConfirmationPage extends StatefulWidget {
   const OrderConfirmationPage({
     required this.kitchen,
+    this.kitchenLoader,
     required this.item,
     required this.walletRepository,
     required this.orderRepository,
@@ -26,6 +27,7 @@ class OrderConfirmationPage extends StatefulWidget {
   });
 
   final Kitchen kitchen;
+  final Future<Kitchen> Function(String kitchenId)? kitchenLoader;
   final MenuItem item;
   final WalletRepository
   walletRepository; // Retained only for legacy test utilities.
@@ -42,6 +44,10 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
   final _address = TextEditingController();
   final _transactionId = TextEditingController();
   late PaymentMethod _method;
+  late Kitchen _kitchen;
+  int _quantity = 1;
+  bool _configurationLoading = false;
+  String? _configurationError;
   bool _submitting = false;
   PlaceOrderResult? _result;
   String? _error;
@@ -52,8 +58,42 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
   @override
   void initState() {
     super.initState();
-    final methods = availableCheckoutPaymentMethods(widget.kitchen);
+    _kitchen = widget.kitchen;
+    final methods = availableCheckoutPaymentMethods(_kitchen);
     _method = methods.isNotEmpty ? methods.first : PaymentMethod.cashOnDelivery;
+    if (widget.kitchenLoader != null) _loadKitchenConfiguration();
+  }
+
+  double get _total => widget.item.price * _quantity;
+
+  Future<void> _loadKitchenConfiguration() async {
+    if (mounted) {
+      setState(() {
+        _configurationLoading = true;
+        _configurationError = null;
+      });
+    }
+    try {
+      final kitchen = await widget.kitchenLoader!(widget.kitchen.id);
+      final methods = availableCheckoutPaymentMethods(kitchen);
+      if (!mounted) return;
+      setState(() {
+        _kitchen = kitchen;
+        if (!methods.contains(_method)) {
+          _method = methods.isNotEmpty
+              ? methods.first
+              : PaymentMethod.cashOnDelivery;
+        }
+        _configurationLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _configurationLoading = false;
+        _configurationError =
+            'Could not load current kitchen payment settings.';
+      });
+    }
   }
 
   Future<void> _useCurrentLocation() async {
@@ -111,7 +151,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
     if (_submitting || _result != null) {
       return;
     }
-    final methods = availableCheckoutPaymentMethods(widget.kitchen);
+    final methods = availableCheckoutPaymentMethods(_kitchen);
     if (methods.isEmpty) {
       setState(
         () => _error =
@@ -137,6 +177,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
       final result = await widget.orderRepository.placeOrder(
         PlaceOrderRequest(
           menuItemId: widget.item.id,
+          quantity: _quantity,
           deliveryAddress: _address.text,
           paymentMethod: _method,
           transactionId: _method == PaymentMethod.bkash
@@ -175,6 +216,40 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
   @override
   Widget build(BuildContext context) {
     final result = _result;
+    if (_configurationLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Secure checkout')),
+        body: const Center(
+          key: Key('checkout-configuration-loading'),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (_configurationError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Secure checkout')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              key: const Key('checkout-configuration-error'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_outlined, size: 56),
+                const SizedBox(height: 12),
+                Text(_configurationError!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _loadKitchenConfiguration,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Secure checkout')),
       body: SafeArea(
@@ -189,7 +264,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                   widget.item.name,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                subtitle: Text(widget.kitchen.name),
+                subtitle: Text(_kitchen.name),
                 trailing: Text(
                   orderCurrency(widget.item.price),
                   style: Theme.of(context).textTheme.titleLarge,
@@ -197,6 +272,55 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
               ),
             ),
             const SizedBox(height: 14),
+            if (result == null) ...[
+              _CheckoutSection(
+                title: 'Quantity',
+                child: Row(
+                  children: [
+                    IconButton.filledTonal(
+                      key: const Key('quantity-decrease'),
+                      onPressed: _quantity > 1
+                          ? () => setState(() => _quantity--)
+                          : null,
+                      icon: const Icon(Icons.remove),
+                    ),
+                    SizedBox(
+                      width: 72,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 160),
+                        child: Text(
+                          '$_quantity',
+                          key: ValueKey(_quantity),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    IconButton.filled(
+                      key: const Key('quantity-increase'),
+                      onPressed: _quantity < maxOrderQuantity
+                          ? () => setState(() => _quantity++)
+                          : null,
+                      icon: const Icon(Icons.add),
+                    ),
+                    const Spacer(),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('Unit ${orderCurrency(widget.item.price)}'),
+                        Text(
+                          'Total ${orderCurrency(_total)}',
+                          key: const Key('checkout-total'),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             if (result == null)
               Form(
                 key: _formKey,
@@ -305,7 +429,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                       title: 'Payment method',
                       child: Column(
                         children: [
-                          if (widget.kitchen.hasUsableBkash)
+                          if (_kitchen.hasUsableBkash)
                             _PaymentChoice(
                               key: const Key('payment-bkash'),
                               selected: _method == PaymentMethod.bkash,
@@ -316,8 +440,8 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                               onTap: () =>
                                   setState(() => _method = PaymentMethod.bkash),
                             ),
-                          if (widget.kitchen.acceptsCod) ...[
-                            if (widget.kitchen.hasUsableBkash)
+                          if (_kitchen.acceptsCod) ...[
+                            if (_kitchen.hasUsableBkash)
                               const SizedBox(height: 10),
                             _PaymentChoice(
                               key: const Key('payment-cod'),
@@ -330,8 +454,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                               ),
                             ),
                           ],
-                          if (widget.kitchen.acceptsBkash &&
-                              !widget.kitchen.hasUsableBkash)
+                          if (_kitchen.acceptsBkash && !_kitchen.hasUsableBkash)
                             const Padding(
                               padding: EdgeInsets.only(top: 8),
                               child: Text(
@@ -339,7 +462,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                                 key: Key('bkash-configuration-error'),
                               ),
                             ),
-                          if (!widget.kitchen.hasUsablePaymentMethod)
+                          if (!_kitchen.hasUsablePaymentMethod)
                             Text(
                               'Ordering is unavailable until the kitchen enables a valid payment method.',
                               key: const Key('no-payment-methods'),
@@ -359,7 +482,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Send ${orderCurrency(widget.item.price)} to ${widget.kitchen.bkashNumber}, then enter the Transaction ID below.',
+                                    'Send ${orderCurrency(_total)} to ${_kitchen.bkashNumber}, then enter the Transaction ID below.',
                                   ),
                                   const SizedBox(height: 6),
                                   const Text(
@@ -401,7 +524,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
             if (result == null)
               FilledButton.icon(
                 key: const Key('place-order-button'),
-                onPressed: _submitting || !widget.kitchen.hasUsablePaymentMethod
+                onPressed: _submitting || !_kitchen.hasUsablePaymentMethod
                     ? null
                     : _placeOrder,
                 icon: _submitting
@@ -422,7 +545,13 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                   child: Column(
                     children: [
                       const Icon(Icons.check_circle_outline, size: 54),
-                      const Text('Order placed', key: Key('order-success')),
+                      Text(
+                        result.paymentMethod == PaymentMethod.bkash
+                            ? 'Order submitted — waiting for Kitchen Owner payment verification.'
+                            : 'Order placed',
+                        key: const Key('order-success'),
+                        textAlign: TextAlign.center,
+                      ),
                       Text(
                         'Total: ${orderCurrency(result.authoritativeTotal)}',
                       ),

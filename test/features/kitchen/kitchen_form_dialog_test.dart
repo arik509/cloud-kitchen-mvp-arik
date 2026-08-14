@@ -140,6 +140,37 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('shows clear owner payment controls and validates bKash number', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const FakeLocationService(
+          result: GeoCoordinates(latitude: 0, longitude: 0),
+        ),
+      ),
+    );
+    final card = find.byKey(const Key('payment-methods-card'));
+    await tester.scrollUntilVisible(
+      card,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(card, findsOneWidget);
+    expect(find.byKey(const Key('bkash-number')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('accept-bkash')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('bkash-number')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('bkash-number')), '123');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(
+      find.text('Enter a valid Bangladeshi mobile number'),
+      findsOneWidget,
+    );
+  });
 }
 
 const _onePixelPng = <int>[

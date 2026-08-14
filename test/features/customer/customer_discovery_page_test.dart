@@ -73,6 +73,54 @@ void main() {
       expect(find.byKey(Key('location-${code.name}')), findsOneWidget);
     });
   }
+
+  testWidgets('automatically retries location and refreshes after resume', (
+    tester,
+  ) async {
+    final location = SequenceLocationService([
+      const LocationException(
+        LocationFailureCode.servicesDisabled,
+        'Turn on location to discover nearby kitchens.',
+      ),
+      const GeoCoordinates(latitude: 23.8103, longitude: 90.4125),
+    ]);
+    await tester.pumpWidget(
+      _app(
+        locationService: location,
+        catalog: FakeCatalog(kitchens: const [_kitchen]),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('location-servicesDisabled')), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(location.calls, 2);
+    expect(find.byKey(const Key('nearby-kitchen-list')), findsOneWidget);
+    expect(find.text('Test Kitchen'), findsOneWidget);
+  });
+
+  testWidgets('manual Retry remains available after a location failure', (
+    tester,
+  ) async {
+    final location = SequenceLocationService([
+      const LocationException(LocationFailureCode.denied, 'Denied'),
+      const GeoCoordinates(latitude: 23.8103, longitude: 90.4125),
+    ]);
+    await tester.pumpWidget(
+      _app(
+        locationService: location,
+        catalog: FakeCatalog(kitchens: const [_kitchen]),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(location.calls, 2);
+    expect(find.byKey(const Key('nearby-kitchen-list')), findsOneWidget);
+  });
 }
 
 const _kitchen = Kitchen(
@@ -110,6 +158,24 @@ class FakeLocationService implements LocationService {
 
   @override
   Future<bool> openLocationSettings() async => false;
+}
+
+class SequenceLocationService implements LocationService {
+  SequenceLocationService(this.results);
+
+  final List<Object> results;
+  int calls = 0;
+
+  @override
+  Future<GeoCoordinates> determineLocation() async {
+    final result = results[calls < results.length ? calls : results.length - 1];
+    calls++;
+    if (result is LocationException) throw result;
+    return result as GeoCoordinates;
+  }
+
+  @override
+  Future<bool> openLocationSettings() async => true;
 }
 
 class FakeCatalog implements CustomerCatalogRepository {

@@ -304,44 +304,87 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
                   value: _active,
                   onChanged: (value) => setState(() => _active = value),
                 ),
-                const Divider(),
-                Text(
-                  'Customer payment methods',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                SwitchListTile(
-                  key: const Key('accept-bkash'),
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Accept bKash'),
-                  subtitle: const Text('Payments are verified manually.'),
-                  value: _acceptsBkash,
-                  onChanged: (value) => setState(() => _acceptsBkash = value),
-                ),
-                if (_acceptsBkash)
-                  TextFormField(
-                    key: const Key('bkash-number'),
-                    controller: _bkashNumber,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'bKash receiving number',
+                const SizedBox(height: 12),
+                Card(
+                  key: const Key('payment-methods-card'),
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: const Color(0xffffe8f1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.account_balance_wallet_outlined,
+                                color: Color(0xffd81b60),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Payment Methods',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
+                        SwitchListTile(
+                          key: const Key('accept-bkash'),
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Accept bKash'),
+                          subtitle: const Text(
+                            'Verify customer Transaction IDs manually.',
+                          ),
+                          value: _acceptsBkash,
+                          onChanged: (value) =>
+                              setState(() => _acceptsBkash = value),
+                        ),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: _acceptsBkash
+                              ? TextFormField(
+                                  key: const Key('bkash-number'),
+                                  controller: _bkashNumber,
+                                  keyboardType: TextInputType.phone,
+                                  decoration: const InputDecoration(
+                                    labelText: 'bKash Receiving Number',
+                                    prefixIcon: Icon(Icons.phone_android),
+                                    helperText:
+                                        'Use 01XXXXXXXXX or +8801XXXXXXXXX.',
+                                  ),
+                                  validator: validateBangladeshiMobile,
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        SwitchListTile(
+                          key: const Key('accept-cod'),
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Accept Cash on Delivery'),
+                          subtitle: const Text(
+                            'The assigned rider records cash collection.',
+                          ),
+                          value: _acceptsCod,
+                          onChanged: (value) =>
+                              setState(() => _acceptsCod = value),
+                        ),
+                        if (_active && !_acceptsBkash && !_acceptsCod)
+                          Text(
+                            'Enable at least one payment method for an active kitchen.',
+                            key: const Key('payment-method-required'),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                      ],
                     ),
-                    validator: (value) => validateBangladeshiMobile(value),
                   ),
-                SwitchListTile(
-                  key: const Key('accept-cod'),
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Accept Cash on Delivery'),
-                  value: _acceptsCod,
-                  onChanged: (value) => setState(() => _acceptsCod = value),
                 ),
-                if (_active && !_acceptsBkash && !_acceptsCod)
-                  Text(
-                    'Enable at least one payment method for an active kitchen.',
-                    key: const Key('payment-method-required'),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
               ],
             ),
           ),

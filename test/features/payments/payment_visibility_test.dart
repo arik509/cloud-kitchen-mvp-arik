@@ -31,6 +31,27 @@ void main() {
     expect(availableCheckoutPaymentMethods(missing), isEmpty);
     expect(availableCheckoutPaymentMethods(invalid), isEmpty);
   });
+
+  test('owner payment settings round-trip through canonical schema fields', () {
+    const draft = KitchenDraft(
+      name: 'Kitchen',
+      address: 'Address',
+      acceptsBkash: true,
+      bkashNumber: '+8801700000000',
+      acceptsCod: false,
+    );
+    final insert = draft.toInsertMap('owner-1');
+
+    expect(insert['accepts_bkash'], isTrue);
+    expect(insert['bkash_number'], '+8801700000000');
+    expect(insert['accepts_cod'], isFalse);
+
+    final loaded = Kitchen.fromMap({...insert, 'id': 'kitchen-1'});
+    expect(loaded.acceptsBkash, isTrue);
+    expect(loaded.bkashNumber, '+8801700000000');
+    expect(loaded.acceptsCod, isFalse);
+    expect(availableCheckoutPaymentMethods(loaded), [PaymentMethod.bkash]);
+  });
 }
 
 Map<String, dynamic> _row({

@@ -44,13 +44,41 @@ class CustomerDiscoveryPage extends StatefulWidget {
   State<CustomerDiscoveryPage> createState() => _CustomerDiscoveryPageState();
 }
 
-class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
+class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage>
+    with WidgetsBindingObserver {
   late Future<List<NearbyKitchen>> _kitchens;
+  bool _refreshingOnResume = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _kitchens = _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshAfterResume();
+    }
+  }
+
+  Future<void> _refreshAfterResume() async {
+    if (_refreshingOnResume || !mounted) return;
+    _refreshingOnResume = true;
+    try {
+      await _refresh();
+    } catch (_) {
+      // The FutureBuilder keeps the actionable location or network error.
+    } finally {
+      _refreshingOnResume = false;
+    }
   }
 
   Future<List<NearbyKitchen>> _load() async {
@@ -78,11 +106,18 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
         .toList(growable: false);
   }
 
-  void _retry() => setState(() => _kitchens = _load());
+  void _retry() {
+    final future = _load();
+    setState(() {
+      _kitchens = future;
+    });
+  }
 
   Future<void> _refresh() async {
     final future = _load();
-    setState(() => _kitchens = future);
+    setState(() {
+      _kitchens = future;
+    });
     await future;
   }
 
@@ -304,7 +339,8 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
           LocationFailureCode.denied => 'Location permission denied',
           LocationFailureCode.permanentlyDenied =>
             'Location permission blocked',
-          LocationFailureCode.servicesDisabled => 'Location is turned off',
+          LocationFailureCode.servicesDisabled =>
+            'Turn on location to discover nearby kitchens.',
           LocationFailureCode.unavailable => 'Location unavailable',
           LocationFailureCode.timeout => 'Location request timed out',
         },

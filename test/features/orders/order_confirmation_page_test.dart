@@ -39,6 +39,7 @@ void main() {
     expect(repository.calls, 1);
     expect(repository.request!.toRpcParameters(), {
       'p_menu_item_id': 'item-1',
+      'p_quantity': 1,
       'p_delivery_address': 'Delivery Road',
       'p_payment_method': 'cash_on_delivery',
       'p_transaction_id': null,
@@ -136,6 +137,56 @@ void main() {
     expect(find.byKey(const Key('payment-cod')), findsOneWidget);
   });
 
+  testWidgets('reloads persisted payment settings when checkout opens', (
+    tester,
+  ) async {
+    _useTallTestView(tester);
+    await tester.pumpWidget(
+      _app(
+        FakeOrderRepository(),
+        kitchen: _kitchen,
+        kitchenLoader: (_) async => _kitchen.copyWith(
+          acceptsBkash: true,
+          bkashNumber: '01700000000',
+          acceptsCod: true,
+        ),
+      ),
+    );
+    expect(
+      find.byKey(const Key('checkout-configuration-loading')),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('payment-bkash')), findsOneWidget);
+    expect(find.byKey(const Key('payment-cod')), findsOneWidget);
+  });
+
+  testWidgets('quantity selector updates authoritative request total preview', (
+    tester,
+  ) async {
+    _useTallTestView(tester);
+    final repository = FakeOrderRepository();
+    await tester.pumpWidget(_app(repository));
+    await tester.tap(find.byKey(const Key('quantity-increase')));
+    await tester.tap(find.byKey(const Key('quantity-increase')));
+    await tester.pump();
+    expect(find.textContaining('360.00'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('delivery-address')),
+      'Delivery Road',
+    );
+    await _selectCurrentLocation(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('place-order-button')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('place-order-button')));
+    await tester.pump();
+    expect(repository.request?.quantity, 3);
+    expect(repository.request?.toRpcParameters()['p_quantity'], 3);
+  });
+
   testWidgets('supports bKash-only and COD-only kitchens', (tester) async {
     _useTallTestView(tester);
     await tester.pumpWidget(
@@ -223,22 +274,27 @@ const _kitchen = Kitchen(
   address: 'Address',
   acceptsCod: true,
 );
-Widget _app(FakeOrderRepository repository, {Kitchen kitchen = _kitchen}) =>
-    MaterialApp(
-      home: OrderConfirmationPage(
-        kitchen: kitchen,
-        item: const MenuItem(
-          id: 'item-1',
-          kitchenId: 'kitchen-1',
-          name: 'Meal',
-          price: 120,
-          isAvailable: true,
-        ),
-        walletRepository: FakeWalletRepository(),
-        orderRepository: repository,
-        locationService: const FakeLocationService(),
-      ),
-    );
+Widget _app(
+  FakeOrderRepository repository, {
+  Kitchen kitchen = _kitchen,
+  Future<Kitchen> Function(String)? kitchenLoader,
+}) => MaterialApp(
+  home: OrderConfirmationPage(
+    key: UniqueKey(),
+    kitchen: kitchen,
+    kitchenLoader: kitchenLoader,
+    item: const MenuItem(
+      id: 'item-1',
+      kitchenId: 'kitchen-1',
+      name: 'Meal',
+      price: 120,
+      isAvailable: true,
+    ),
+    walletRepository: FakeWalletRepository(),
+    orderRepository: repository,
+    locationService: const FakeLocationService(),
+  ),
+);
 
 class FakeLocationService implements LocationService {
   const FakeLocationService();

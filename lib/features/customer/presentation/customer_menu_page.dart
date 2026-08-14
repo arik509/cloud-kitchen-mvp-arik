@@ -71,6 +71,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
       MaterialPageRoute(
         builder: (_) => OrderConfirmationPage(
           kitchen: _kitchen,
+          kitchenLoader: widget.catalogRepository.fetchKitchen,
           item: item,
           walletRepository: widget.walletRepository,
           orderRepository: widget.orderRepository,
