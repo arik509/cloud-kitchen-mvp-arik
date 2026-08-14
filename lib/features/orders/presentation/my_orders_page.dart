@@ -12,6 +12,7 @@ import '../../ratings/data/rating_repository.dart';
 import '../../ratings/presentation/rating_dialog.dart';
 import '../data/order_repository.dart';
 import '../domain/order_models.dart';
+import 'order_receipt_page.dart';
 import 'order_ui.dart';
 
 class MyOrdersPage extends StatefulWidget {
@@ -296,6 +297,24 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                           ),
                           icon: const Icon(Icons.chat_bubble_outline),
                           label: const Text('Chat with Kitchen'),
+                        ),
+                      ),
+                    ],
+                    if (order.status == OrderStatus.delivered) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonalIcon(
+                          key: Key('view-receipt-${order.id}'),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  OrderReceiptPage(order: order),
+                            ),
+                          ),
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: const Text('View & Download Receipt'),
                         ),
                       ),
                     ],

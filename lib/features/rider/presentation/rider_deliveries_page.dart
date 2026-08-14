@@ -19,11 +19,15 @@ class RiderDeliveriesPage extends StatefulWidget {
     required this.repository,
     this.paymentRepository,
     this.notificationDispatcher,
+    this.onDeliveryCompleted,
     super.key,
   });
   final RiderDeliveryRepository repository;
   final PaymentRepository? paymentRepository;
   final OrderNotificationDispatcher? notificationDispatcher;
+
+  /// Called whenever a delivery action (advance status, cash collected) succeeds.
+  final VoidCallback? onDeliveryCompleted;
 
   @override
   State<RiderDeliveriesPage> createState() => _RiderDeliveriesPageState();
@@ -177,6 +181,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
         delivery.id,
       );
       await _refresh(silent: true);
+      widget.onDeliveryCompleted?.call();
     } on PaymentException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -208,6 +213,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
           content: Text('Delivery is ${orderStatusLabel(result.status)}.'),
         ),
       );
+      widget.onDeliveryCompleted?.call();
     } on RiderDeliveryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(

@@ -448,11 +448,18 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int index = 0;
   int _ordersRevision = 0;
+  final _riderEarningsRefresh = ValueNotifier<int>(0);
 
   @override
   void initState() {
     super.initState();
     widget.notificationService.syncForCurrentSession();
+  }
+
+  @override
+  void dispose() {
+    _riderEarningsRefresh.dispose();
+    super.dispose();
   }
 
   void _openNotificationChat(NotificationDestination destination) {
@@ -550,8 +557,15 @@ class _HomeScreenState extends State<HomeScreen> {
           repository: riderRepository,
           paymentRepository: paymentRepository,
           notificationDispatcher: notificationDispatcher,
+          onDeliveryCompleted: () {
+            // Notify earnings page to refresh after any delivery action.
+            _riderEarningsRefresh.value++;
+          },
         ),
-        RiderEarningsPage(repository: settlementRepository),
+        RiderEarningsPage(
+          repository: settlementRepository,
+          refreshNotifier: _riderEarningsRefresh,
+        ),
         ProfilePage(
           notificationService: widget.notificationService,
           repository: accountProfileRepository,

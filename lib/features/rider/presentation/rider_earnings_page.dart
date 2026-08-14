@@ -6,9 +6,16 @@ import '../../finance/domain/settlement_models.dart';
 import '../../orders/presentation/order_ui.dart';
 
 class RiderEarningsPage extends StatefulWidget {
-  const RiderEarningsPage({required this.repository, super.key});
+  const RiderEarningsPage({
+    required this.repository,
+    this.refreshNotifier,
+    super.key,
+  });
 
   final SettlementRepository repository;
+
+  /// Increment this notifier after any delivery action to auto-refresh earnings.
+  final ValueNotifier<int>? refreshNotifier;
 
   @override
   State<RiderEarningsPage> createState() => _RiderEarningsPageState();
@@ -21,6 +28,18 @@ class _RiderEarningsPageState extends State<RiderEarningsPage> {
   void initState() {
     super.initState();
     _earnings = widget.repository.fetchRiderEarnings();
+    widget.refreshNotifier?.addListener(_onExternalRefresh);
+  }
+
+  @override
+  void dispose() {
+    widget.refreshNotifier?.removeListener(_onExternalRefresh);
+    super.dispose();
+  }
+
+  void _onExternalRefresh() {
+    if (!mounted) return;
+    _refresh();
   }
 
   Future<void> _refresh() async {
