@@ -54,6 +54,7 @@ class PlaceOrderRequest {
   const PlaceOrderRequest({
     required this.menuItemId,
     required this.deliveryAddress,
+    this.quantity = 1,
     this.paymentMethod = PaymentMethod.cashOnDelivery,
     this.transactionId,
     this.deliveryLatitude,
@@ -62,6 +63,7 @@ class PlaceOrderRequest {
 
   final String menuItemId;
   final String deliveryAddress;
+  final int quantity;
   final PaymentMethod paymentMethod;
   final String? transactionId;
   final double? deliveryLatitude;
@@ -74,16 +76,33 @@ class PlaceOrderRequest {
     return GeoCoordinates(latitude: latitude!, longitude: longitude!);
   }
 
-  Map<String, dynamic> toRpcParameters() => {
-    'p_menu_item_id': menuItemId,
-    'p_delivery_address': deliveryAddress.trim(),
-    'p_payment_method': paymentMethodValue(paymentMethod),
-    'p_transaction_id': paymentMethod == PaymentMethod.bkash
-        ? normalizeBkashTransactionId(transactionId ?? '')
-        : null,
-    'p_delivery_latitude': deliveryLatitude,
-    'p_delivery_longitude': deliveryLongitude,
-  };
+  Map<String, dynamic> toRpcParameters() {
+    final quantityError = validateOrderQuantity(quantity);
+    if (quantityError != null) {
+      throw ArgumentError.value(quantity, 'quantity', quantityError);
+    }
+    return {
+      'p_menu_item_id': menuItemId,
+      'p_quantity': quantity,
+      'p_delivery_address': deliveryAddress.trim(),
+      'p_payment_method': paymentMethodValue(paymentMethod),
+      'p_transaction_id': paymentMethod == PaymentMethod.bkash
+          ? normalizeBkashTransactionId(transactionId ?? '')
+          : null,
+      'p_delivery_latitude': deliveryLatitude,
+      'p_delivery_longitude': deliveryLongitude,
+    };
+  }
+}
+
+const int maxOrderQuantity = 20;
+
+String? validateOrderQuantity(int quantity) {
+  if (quantity < 1) return 'Quantity must be at least 1';
+  if (quantity > maxOrderQuantity) {
+    return 'Quantity cannot exceed $maxOrderQuantity';
+  }
+  return null;
 }
 
 String? validateDeliveryCoordinates(double? latitude, double? longitude) {
@@ -126,6 +145,7 @@ class CustomerOrder {
     required this.kitchenName,
     required this.itemName,
     required this.itemPrice,
+    required this.quantity,
     required this.status,
     required this.finalPrice,
     required this.deliveryAddress,
@@ -144,6 +164,7 @@ class CustomerOrder {
   final String kitchenName;
   final String itemName;
   final double itemPrice;
+  final int quantity;
   final OrderStatus status;
   final double finalPrice;
   final String deliveryAddress;
@@ -173,6 +194,7 @@ class CustomerOrder {
       itemPrice:
           (orderItem?['unit_price'] as num?)?.toDouble() ??
           (map['final_price'] as num).toDouble(),
+      quantity: orderItem?['quantity'] as int? ?? 1,
       status: parseOrderStatus(map['status']),
       finalPrice: (map['final_price'] as num).toDouble(),
       deliveryAddress: map['delivery_address'] as String,

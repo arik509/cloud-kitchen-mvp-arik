@@ -220,7 +220,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                         ),
                       ],
                     ),
-                    Text(order.itemName),
+                    Text('${order.itemName} × ${order.quantity}'),
                     Text(
                       'Item ${orderCurrency(order.itemPrice)} · '
                       'Total ${orderCurrency(order.finalPrice)}',

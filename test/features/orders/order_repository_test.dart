@@ -6,6 +6,7 @@ void main() {
   test('place-order request contains only checkout inputs', () {
     const request = PlaceOrderRequest(
       menuItemId: 'item-1',
+      quantity: 3,
       deliveryAddress: '  12 Test Road  ',
       deliveryLatitude: 23.8,
       deliveryLongitude: 90.4,
@@ -13,6 +14,7 @@ void main() {
 
     expect(request.toRpcParameters(), {
       'p_menu_item_id': 'item-1',
+      'p_quantity': 3,
       'p_delivery_address': '12 Test Road',
       'p_payment_method': 'cash_on_delivery',
       'p_transaction_id': null,
@@ -52,6 +54,7 @@ void main() {
       final result = await repository.placeOrder(
         const PlaceOrderRequest(
           menuItemId: 'item-1',
+          quantity: 2,
           deliveryAddress: 'Customer address',
           deliveryLatitude: 23.8,
           deliveryLongitude: 90.4,
@@ -60,6 +63,7 @@ void main() {
 
       expect(source.lastParameters, {
         'p_menu_item_id': 'item-1',
+        'p_quantity': 2,
         'p_delivery_address': 'Customer address',
         'p_payment_method': 'cash_on_delivery',
         'p_transaction_id': null,
@@ -85,6 +89,7 @@ void main() {
             'order_items': [
               {
                 'unit_price': 240,
+                'quantity': 3,
                 'menu_items': {'name': 'Test Meal'},
               },
             ],
@@ -103,6 +108,7 @@ void main() {
       expect(orders.single.kitchenName, 'Test Kitchen');
       expect(orders.single.itemName, 'Test Meal');
       expect(orders.single.itemPrice, 240);
+      expect(orders.single.quantity, 3);
       expect(orders.single.status, OrderStatus.pending);
       expect(orders.single.finalPrice, 240);
       expect(orders.single.deliveryCoordinates, isNull);
@@ -139,6 +145,22 @@ void main() {
     expect(validateDeliveryCoordinates(null, 90.4), isNotNull);
     expect(validateDeliveryCoordinates(91, 90.4), isNotNull);
     expect(validateDeliveryCoordinates(23.8, -181), isNotNull);
+  });
+
+  test('validates order quantity boundaries', () {
+    expect(validateOrderQuantity(1), isNull);
+    expect(validateOrderQuantity(maxOrderQuantity), isNull);
+    expect(validateOrderQuantity(0), isNotNull);
+    expect(validateOrderQuantity(-1), isNotNull);
+    expect(validateOrderQuantity(maxOrderQuantity + 1), isNotNull);
+    expect(
+      () => const PlaceOrderRequest(
+        menuItemId: 'item',
+        deliveryAddress: 'Address',
+        quantity: 0,
+      ).toRpcParameters(),
+      throwsArgumentError,
+    );
   });
 }
 

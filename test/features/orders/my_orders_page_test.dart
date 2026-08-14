@@ -52,6 +52,7 @@ void main() {
               kitchenName: 'Nearby Kitchen',
               itemName: 'Rice Bowl',
               itemPrice: 150,
+              quantity: 1,
               status: OrderStatus.pending,
               finalPrice: 150,
               deliveryAddress: 'Delivery Road',
@@ -64,7 +65,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Nearby Kitchen'), findsOneWidget);
-    expect(find.text('Rice Bowl'), findsOneWidget);
+    expect(find.text('Rice Bowl × 1'), findsOneWidget);
     expect(find.textContaining('৳150.00'), findsOneWidget);
     expect(find.text('Pending'), findsOneWidget);
     expect(find.text('Delivery Road'), findsOneWidget);
@@ -82,6 +83,7 @@ void main() {
               kitchenName: 'Nearby Kitchen',
               itemName: 'Rice Bowl',
               itemPrice: 150,
+              quantity: 1,
               status: OrderStatus.rejected,
               finalPrice: 150,
               deliveryAddress: 'Delivery Road',
@@ -183,6 +185,7 @@ CustomerOrder _customerOrder({required OrderStatus status}) => CustomerOrder(
   kitchenName: 'Nearby Kitchen',
   itemName: 'Rice Bowl',
   itemPrice: 150,
+  quantity: 1,
   status: status,
   finalPrice: 150,
   deliveryAddress: 'Delivery Road',

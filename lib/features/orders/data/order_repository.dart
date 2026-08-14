@@ -79,7 +79,7 @@ class SupabaseOrderRemoteDataSource implements OrderRemoteDataSource {
         'Sign in again before placing an order.',
       );
     }
-    return _client.rpc('place_order_v3', params: parameters);
+    return _client.rpc('place_order_v4', params: parameters);
   }
 
   @override
@@ -97,7 +97,7 @@ class SupabaseOrderRemoteDataSource implements OrderRemoteDataSource {
           'id,kitchen_id,status,final_price,delivery_address,'
           'delivery_latitude,delivery_longitude,created_at,'
           'kitchens(name),'
-          'order_items(unit_price,menu_items(name)),'
+          'order_items(quantity,unit_price,menu_items(name)),'
           'order_payments(payment_method,payment_status,transaction_id,submitted_at),'
           'ratings(stars)',
         )
@@ -112,6 +112,7 @@ enum OrderFailureCode {
   customerRoleRequired,
   invalidAddress,
   invalidLocation,
+  invalidQuantity,
   invalidPayment,
   duplicateTransaction,
   unavailableItem,
@@ -156,6 +157,13 @@ class OrderRepositoryException implements Exception {
       return OrderRepositoryException(
         OrderFailureCode.invalidLocation,
         'Choose a valid delivery location.',
+        backendCode: backendCode,
+      );
+    }
+    if (normalized.contains('invalid_order_quantity')) {
+      return OrderRepositoryException(
+        OrderFailureCode.invalidQuantity,
+        'Choose a quantity between 1 and $maxOrderQuantity.',
         backendCode: backendCode,
       );
     }
