@@ -1,4 +1,5 @@
 import 'package:cloud_kitchen_mvp/features/payments/domain/payment_models.dart';
+import 'package:cloud_kitchen_mvp/features/payments/data/payment_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -56,6 +57,25 @@ void main() {
         PaymentStatus.codPending,
       ),
       contains('pending collection'),
+    );
+  });
+
+  test('COD backend failures retain specific safe messages', () {
+    expect(
+      PaymentException.fromBackend('cash_already_collected').message,
+      contains('already collected'),
+    );
+    expect(
+      PaymentException.fromBackend('cod_payment_required').message,
+      contains('only for Cash on Delivery'),
+    );
+    expect(
+      PaymentException.fromBackend('pickup_required').message,
+      contains('picked up'),
+    );
+    expect(
+      PaymentException.fromBackend('delivery_access_denied').message,
+      contains('not allowed'),
     );
   });
 }

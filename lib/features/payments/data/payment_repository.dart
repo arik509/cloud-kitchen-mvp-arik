@@ -85,6 +85,27 @@ class PaymentException implements Exception {
     if (value.contains('cod_collection_required')) {
       return const PaymentException('Confirm cash collection before delivery.');
     }
+    if (value.contains('rider_role_required')) {
+      return const PaymentException('A rider account is required.');
+    }
+    if (value.contains('cod_payment_required')) {
+      return const PaymentException(
+        'Cash collection is available only for Cash on Delivery orders.',
+      );
+    }
+    if (value.contains('cash_already_collected')) {
+      return const PaymentException(
+        'Cash was already collected for this order.',
+      );
+    }
+    if (value.contains('pickup_required')) {
+      return const PaymentException(
+        'Mark the order as picked up before collecting cash.',
+      );
+    }
+    if (value.contains('order_not_found')) {
+      return const PaymentException('This order could not be found.');
+    }
     if (value.contains('access_denied')) {
       return const PaymentException(
         'You are not allowed to update this payment.',
