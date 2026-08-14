@@ -167,7 +167,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pump();
     expect(
-      find.text('Enter a valid Bangladeshi mobile number'),
+      find.text('Enter a valid Bangladeshi mobile number.'),
       findsOneWidget,
     );
   });

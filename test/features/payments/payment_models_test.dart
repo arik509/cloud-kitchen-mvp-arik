@@ -49,7 +49,7 @@ void main() {
   test('payment labels distinguish order payment states', () {
     expect(
       paymentStatusLabel(PaymentMethod.bkash, PaymentStatus.refundPending),
-      'Refund pending',
+      'Refund processing',
     );
     expect(
       paymentStatusLabel(

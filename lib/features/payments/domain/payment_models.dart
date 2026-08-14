@@ -1,3 +1,7 @@
+import '../../../core/validation/bangladesh_phone.dart';
+
+export '../../../core/validation/bangladesh_phone.dart';
+
 enum PaymentMethod { bkash, cashOnDelivery, demoWallet }
 
 enum PaymentStatus {
@@ -47,10 +51,10 @@ String paymentStatusLabel(PaymentMethod method, PaymentStatus status) =>
         'Cash on Delivery — pending collection',
       (PaymentMethod.cashOnDelivery, PaymentStatus.collected) =>
         'Cash on Delivery — collected',
-      (_, PaymentStatus.refundPending) => 'Refund pending',
+      (_, PaymentStatus.refundPending) => 'Refund processing',
       (_, PaymentStatus.refunded) => 'Refund completed',
       (_, PaymentStatus.cancelled) => 'No payment required',
-      (PaymentMethod.demoWallet, _) => 'Demo wallet',
+      (PaymentMethod.demoWallet, _) => 'Legacy test payment',
       (_, PaymentStatus.verified) => 'Verified',
       (_, PaymentStatus.rejected) => 'Rejected',
       (_, PaymentStatus.awaitingVerification) => 'Awaiting verification',
@@ -76,15 +80,12 @@ String? validateBkashTransactionId(String? value) {
 }
 
 String normalizeBangladeshiMobile(String value) =>
-    value.trim().replaceAll(RegExp(r'[\s-]+'), '');
+    normalizeBangladeshPhone(value);
 
 String? validateBangladeshiMobile(String? value, {bool required = true}) {
   final normalized = normalizeBangladeshiMobile(value ?? '');
   if (normalized.isEmpty) return required ? 'bKash number is required' : null;
-  if (!RegExp(r'^(\+?88)?01[3-9][0-9]{8}$').hasMatch(normalized)) {
-    return 'Enter a valid Bangladeshi mobile number';
-  }
-  return null;
+  return validateBangladeshPhone(normalized, required: required);
 }
 
 class OrderPayment {

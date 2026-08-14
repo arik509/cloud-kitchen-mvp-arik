@@ -1,5 +1,11 @@
 enum UserRole { customer, owner, rider }
 
+String userRoleLabel(UserRole role) => switch (role) {
+  UserRole.customer => 'Customer',
+  UserRole.owner => 'Kitchen Owner',
+  UserRole.rider => 'Delivery Rider',
+};
+
 UserRole parseUserRole(Object? value) => switch (value) {
   'customer' => UserRole.customer,
   'kitchen_owner' => UserRole.owner,
