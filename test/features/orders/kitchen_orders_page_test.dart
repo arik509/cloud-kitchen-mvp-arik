@@ -111,7 +111,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Reject and refund order?'), findsOneWidget);
     expect(find.textContaining('৳260.00'), findsWidgets);
-    await tester.tap(find.text('Reject & refund'));
+    await tester.tap(find.text('Confirm rejection'));
     await tester.pumpAndSettle();
 
     expect(repository.lastTarget, OrderStatus.rejected);

@@ -187,17 +187,48 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage>
           separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             if (index == 0) {
-              return TextField(
-                readOnly: true,
-                decoration: const InputDecoration(
-                  hintText: 'Search nearby kitchens',
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Search is coming in a future release.'),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Good food is nearby',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w900),
+                            ),
+                            const Text(
+                              'Kitchens sorted from your current location',
+                            ),
+                          ],
+                        ),
+                      ),
+                      CircleAvatar(
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
+                        child: const Icon(Icons.person_outline),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Search nearby kitchens',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Search is coming in a future release.'),
+                      ),
+                    ),
+                  ),
+                ],
               );
             }
             if (index == 1) {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/presentation/app_ui.dart';
 import '../../chat/data/chat_repository.dart';
 import '../../chat/presentation/order_chat_page.dart';
 import '../../notifications/data/notification_dispatcher.dart';
@@ -20,6 +21,7 @@ class MyOrdersPage extends StatefulWidget {
     this.paymentRepository,
     this.ratingRepository,
     this.notificationDispatcher,
+    this.profilePhoneLoader,
     super.key,
   });
 
@@ -28,6 +30,7 @@ class MyOrdersPage extends StatefulWidget {
   final PaymentRepository? paymentRepository;
   final RatingRepository? ratingRepository;
   final OrderNotificationDispatcher? notificationDispatcher;
+  final Future<String?> Function()? profilePhoneLoader;
 
   @override
   State<MyOrdersPage> createState() => _MyOrdersPageState();
@@ -37,11 +40,13 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
   late Future<List<CustomerOrder>> _orders;
   Timer? _pollTimer;
   final Set<String> _updating = {};
+  late final Future<String?> _profilePhone;
 
   @override
   void initState() {
     super.initState();
     _orders = widget.repository.fetchCurrentCustomerOrders();
+    _profilePhone = widget.profilePhoneLoader?.call() ?? Future.value(null);
     _pollTimer = Timer.periodic(
       const Duration(seconds: 20),
       (_) => _refresh(silent: true),
@@ -211,12 +216,10 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        Chip(
-                          backgroundColor: orderStatusColor(
-                            context,
-                            order.status,
-                          ),
-                          label: Text(orderStatusLabel(order.status)),
+                        AppStatusBadge(
+                          label: orderStatusLabel(order.status),
+                          icon: _orderStatusIcon(order.status),
+                          color: _orderStatusForeground(context, order.status),
                         ),
                       ],
                     ),
@@ -243,7 +246,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'PAYMENT STATUS',
+                            'PAYMENT',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
@@ -258,9 +261,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                           ),
                           if (order.payment.status ==
                               PaymentStatus.refundPending)
-                            const Text(
-                              'The kitchen will complete this bKash refund manually.',
-                            ),
+                            _refundPolicy(),
                         ],
                       ),
                     ),
@@ -318,7 +319,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                         order.payment.method == PaymentMethod.demoWallet) ...[
                       const SizedBox(height: 8),
                       const Text(
-                        'Rejected · The full order total was returned to your wallet.',
+                        'This historical order payment was reversed.',
                         key: Key('order-refund-message'),
                       ),
                     ],
@@ -331,4 +332,57 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
       },
     ),
   );
+
+  Widget _refundPolicy() => FutureBuilder<String?>(
+    future: _profilePhone,
+    builder: (context, snapshot) {
+      final validPhone = isValidBangladeshPhone(snapshot.data);
+      return Container(
+        key: const Key('bkash-refund-policy'),
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.tertiaryContainer,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Refund will be processed manually within 3 working days.',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              validPhone
+                  ? 'It will be sent to the mobile number registered on your Cloud Kitchen profile.'
+                  : 'Add a valid Bangladesh mobile number in Profile before refund processing.',
+              key: Key(
+                validPhone ? 'refund-phone-ready' : 'refund-phone-warning',
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+
+  IconData _orderStatusIcon(OrderStatus status) => switch (status) {
+    OrderStatus.pending => Icons.schedule,
+    OrderStatus.accepted ||
+    OrderStatus.preparing => Icons.soup_kitchen_outlined,
+    OrderStatus.ready => Icons.task_alt,
+    OrderStatus.rejected => Icons.cancel_outlined,
+    OrderStatus.awaitingRider ||
+    OrderStatus.riderAssigned => Icons.delivery_dining,
+    OrderStatus.pickedUp => Icons.route_outlined,
+    OrderStatus.delivered => Icons.check_circle_outline,
+  };
+
+  Color _orderStatusForeground(BuildContext context, OrderStatus status) =>
+      switch (status) {
+        OrderStatus.rejected => Theme.of(context).colorScheme.error,
+        OrderStatus.ready || OrderStatus.delivered => Colors.green.shade700,
+        _ => Theme.of(context).colorScheme.primary,
+      };
 }

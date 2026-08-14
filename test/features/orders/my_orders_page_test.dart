@@ -6,6 +6,7 @@ import 'package:cloud_kitchen_mvp/features/chat/presentation/order_chat_page.dar
 import 'package:cloud_kitchen_mvp/features/orders/data/order_repository.dart';
 import 'package:cloud_kitchen_mvp/features/orders/domain/order_models.dart';
 import 'package:cloud_kitchen_mvp/features/orders/presentation/my_orders_page.dart';
+import 'package:cloud_kitchen_mvp/features/payments/domain/payment_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -72,7 +73,9 @@ void main() {
     expect(find.textContaining('2026-08-13'), findsOneWidget);
   });
 
-  testWidgets('explains the rejected-order refund', (tester) async {
+  testWidgets('explains manual bKash refund with missing-phone warning', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(
         FakeOrderRepository([
@@ -88,16 +91,23 @@ void main() {
               finalPrice: 150,
               deliveryAddress: 'Delivery Road',
               createdAt: DateTime.utc(2026, 8, 13),
+              payment: const OrderPayment(
+                method: PaymentMethod.bkash,
+                status: PaymentStatus.refundPending,
+              ),
             ),
           ]),
         ]),
+        profilePhoneLoader: () async => null,
       ),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Rejected'), findsOneWidget);
-    expect(find.byKey(const Key('order-refund-message')), findsOneWidget);
-    expect(find.textContaining('returned to your wallet'), findsOneWidget);
+    expect(find.byKey(const Key('bkash-refund-policy')), findsOneWidget);
+    expect(find.textContaining('3 working days'), findsOneWidget);
+    expect(find.byKey(const Key('refund-phone-warning')), findsOneWidget);
+    expect(find.textContaining('wallet'), findsNothing);
     expect(find.text('Chat with Kitchen'), findsNothing);
   });
 
@@ -192,15 +202,19 @@ CustomerOrder _customerOrder({required OrderStatus status}) => CustomerOrder(
   createdAt: DateTime.utc(2026, 8, 13),
 );
 
-Widget _app(OrderRepository repository, {ChatRepository? chatRepository}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: MyOrdersPage(
-          repository: repository,
-          chatRepository: chatRepository ?? FakeChatRepository(),
-        ),
-      ),
-    );
+Widget _app(
+  OrderRepository repository, {
+  ChatRepository? chatRepository,
+  Future<String?> Function()? profilePhoneLoader,
+}) => MaterialApp(
+  home: Scaffold(
+    body: MyOrdersPage(
+      repository: repository,
+      chatRepository: chatRepository ?? FakeChatRepository(),
+      profilePhoneLoader: profilePhoneLoader,
+    ),
+  ),
+);
 
 class FakeOrderRepository implements OrderRepository {
   FakeOrderRepository(this.responses);

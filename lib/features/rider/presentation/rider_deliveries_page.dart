@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/location/location_map_view.dart';
+import '../../../core/presentation/app_ui.dart';
 import '../../notifications/data/notification_dispatcher.dart';
 import '../../orders/domain/order_models.dart';
 import '../../orders/presentation/order_ui.dart';
@@ -65,7 +66,9 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
     try {
       final result = await future;
       if (silent && mounted) {
-        setState(() => _deliveries = Future.value(result));
+        setState(() {
+          _deliveries = Future.value(result);
+        });
       }
     } catch (_) {
       if (!silent && mounted) {
@@ -342,7 +345,10 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                Chip(label: Text(orderStatusLabel(delivery.status))),
+                AppStatusBadge(
+                  label: orderStatusLabel(delivery.status),
+                  icon: Icons.route_outlined,
+                ),
               ],
             ),
             Text('${delivery.quantity} × ${delivery.itemName}'),
@@ -366,6 +372,8 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
               'Payment: ${paymentStatusLabel(delivery.payment.method, delivery.payment.status)}',
             ),
             if (_section == RiderDeliverySection.active) ...[
+              const SizedBox(height: 14),
+              _DeliveryProgress(delivery: delivery),
               const SizedBox(height: 14),
               _activeDeliveryMap(delivery),
             ],
@@ -483,6 +491,68 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
               initialZoom: 14,
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeliveryProgress extends StatelessWidget {
+  const _DeliveryProgress({required this.delivery});
+
+  final RiderDelivery delivery;
+
+  @override
+  Widget build(BuildContext context) {
+    final cod = delivery.payment.method == PaymentMethod.cashOnDelivery;
+    final steps = [
+      ('Claimed', true),
+      ('Picked up', delivery.status == OrderStatus.pickedUp),
+      if (cod) ('Cash', delivery.payment.status == PaymentStatus.collected),
+      ('Delivered', delivery.status == OrderStatus.delivered),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'DELIVERY PROGRESS',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            for (var index = 0; index < steps.length; index++) ...[
+              Expanded(
+                child: Column(
+                  children: [
+                    Icon(
+                      steps[index].$2
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: steps[index].$2
+                          ? Theme.of(context).colorScheme.secondary
+                          : Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      steps[index].$1,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (index < steps.length - 1)
+                Expanded(
+                  child: Divider(
+                    color: steps[index].$2
+                        ? Theme.of(context).colorScheme.secondary
+                        : null,
+                  ),
+                ),
+            ],
+          ],
         ),
       ],
     );

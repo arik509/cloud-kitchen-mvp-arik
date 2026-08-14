@@ -80,14 +80,21 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   Future<void> _transition(KitchenOrder order, OrderStatus target) async {
     if (_updating.contains(order.id)) return;
     if (target == OrderStatus.rejected) {
+      final rejectionMessage = switch ((
+        order.payment.method,
+        order.payment.status,
+      )) {
+        (PaymentMethod.bkash, PaymentStatus.verified) =>
+          'The order will be rejected. Send the verified bKash payment manually to the customer’s registered mobile number within 3 working days.',
+        (PaymentMethod.demoWallet, _) =>
+          'The order will be rejected and its historical test payment will be reversed.',
+        _ => 'The order will be rejected. No online refund is required.',
+      };
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Reject and refund order?'),
-          content: Text(
-            'The order will be rejected and ${orderCurrency(order.finalPrice)} '
-            'will be returned to the customer wallet.',
-          ),
+          content: Text(rejectionMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -95,7 +102,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Reject & refund'),
+              child: const Text('Confirm rejection'),
             ),
           ],
         ),

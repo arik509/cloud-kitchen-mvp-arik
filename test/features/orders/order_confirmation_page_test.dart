@@ -58,6 +58,7 @@ void main() {
     expect(find.byKey(const Key('order-success')), findsOneWidget);
     expect(find.textContaining('pending collection'), findsOneWidget);
     expect(find.textContaining('Wallet'), findsNothing);
+    expect(find.textContaining('Demo Balance'), findsNothing);
   });
 
   testWidgets('bKash checkout requires and normalizes Transaction ID', (
@@ -170,7 +171,8 @@ void main() {
     await tester.tap(find.byKey(const Key('quantity-increase')));
     await tester.tap(find.byKey(const Key('quantity-increase')));
     await tester.pump();
-    expect(find.textContaining('360.00'), findsOneWidget);
+    final total = tester.widget<Text>(find.byKey(const Key('checkout-total')));
+    expect(total.data, contains('360.00'));
     await tester.enterText(
       find.byKey(const Key('delivery-address')),
       'Delivery Road',
@@ -225,6 +227,11 @@ void main() {
     expect(find.byKey(const Key('payment-bkash')), findsNothing);
     expect(find.byKey(const Key('bkash-configuration-error')), findsOneWidget);
     expect(find.byKey(const Key('no-payment-methods')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('place-order-button')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     final button = tester.widget<FilledButton>(
       find.byKey(const Key('place-order-button')),
     );

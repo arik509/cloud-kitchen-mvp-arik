@@ -509,6 +509,25 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    _CheckoutSection(
+                      title: 'Price summary',
+                      child: Column(
+                        children: [
+                          _PriceRow(
+                            label: 'Unit price',
+                            value: orderCurrency(widget.item.price),
+                          ),
+                          _PriceRow(label: 'Quantity', value: '× $_quantity'),
+                          const Divider(height: 24),
+                          _PriceRow(
+                            label: 'Total',
+                            value: orderCurrency(_total),
+                            emphasized: true,
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -608,6 +627,36 @@ class _CheckoutSection extends StatelessWidget {
           child,
         ],
       ),
+    ),
+  );
+}
+
+class _PriceRow extends StatelessWidget {
+  const _PriceRow({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      children: [
+        Expanded(child: Text(label)),
+        Text(
+          value,
+          style: emphasized
+              ? Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)
+              : null,
+        ),
+      ],
     ),
   );
 }

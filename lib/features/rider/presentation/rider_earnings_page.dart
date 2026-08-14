@@ -23,7 +23,9 @@ class _RiderEarningsPageState extends State<RiderEarningsPage> {
 
   Future<void> _refresh() async {
     final future = widget.repository.fetchMine();
-    setState(() => _deliveries = future);
+    setState(() {
+      _deliveries = future;
+    });
     await future;
   }
 
@@ -77,7 +79,7 @@ class _RiderEarningsPageState extends State<RiderEarningsPage> {
             const SizedBox(height: 12),
             const Text(
               'This MVP reports the authoritative rider fee stored on delivered '
-              'orders. It does not perform wallet settlement or online payment.',
+              'orders. It does not perform automatic payout settlement.',
               textAlign: TextAlign.center,
             ),
           ],
