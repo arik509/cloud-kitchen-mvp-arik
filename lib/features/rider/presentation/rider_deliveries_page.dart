@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/location/location_map_view.dart';
 import '../../../core/navigation/external_navigation.dart';
 import '../../notifications/data/notification_dispatcher.dart';
 import '../../orders/domain/order_models.dart';
@@ -188,17 +189,22 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
   }
 
   Future<void> _navigate(bool kitchen, RiderDelivery delivery) async {
-    final opened =
-        kitchen &&
-            delivery.kitchenLatitude != null &&
-            delivery.kitchenLongitude != null
-        ? await widget.navigation.toCoordinates(
-            delivery.kitchenLatitude!,
-            delivery.kitchenLongitude!,
-          )
-        : await widget.navigation.toAddress(
-            kitchen ? delivery.kitchenAddress : delivery.deliveryAddress,
-          );
+    var opened = false;
+    try {
+      final coordinates = kitchen
+          ? delivery.kitchenCoordinates
+          : delivery.deliveryCoordinates;
+      opened = coordinates != null
+          ? await widget.navigation.toCoordinates(
+              coordinates.latitude,
+              coordinates.longitude,
+            )
+          : await widget.navigation.toAddress(
+              kitchen ? delivery.kitchenAddress : delivery.deliveryAddress,
+            );
+    } catch (_) {
+      opened = false;
+    }
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open a maps application.')),
@@ -386,6 +392,10 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
             Text(
               'Payment: ${paymentStatusLabel(delivery.payment.method, delivery.payment.status)}',
             ),
+            if (_section == RiderDeliverySection.active) ...[
+              const SizedBox(height: 14),
+              _activeDeliveryMap(delivery),
+            ],
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -395,13 +405,13 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                   key: Key('navigate-kitchen-${delivery.id}'),
                   onPressed: () => _navigate(true, delivery),
                   icon: const Icon(Icons.storefront_outlined),
-                  label: const Text('Navigate to Kitchen'),
+                  label: const Text('Open pickup in Maps'),
                 ),
                 OutlinedButton.icon(
                   key: Key('navigate-customer-${delivery.id}'),
                   onPressed: () => _navigate(false, delivery),
                   icon: const Icon(Icons.navigation_outlined),
-                  label: const Text('Navigate to Customer'),
+                  label: const Text('Open delivery in Maps'),
                 ),
               ],
             ),
@@ -442,6 +452,86 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _activeDeliveryMap(RiderDelivery delivery) {
+    final kitchen = delivery.kitchenCoordinates;
+    final customer = delivery.deliveryCoordinates;
+    final markers = <LocationMapMarker>[
+      if (kitchen != null)
+        LocationMapMarker(
+          id: 'pickup',
+          label: 'Pickup',
+          coordinates: kitchen,
+          color: Theme.of(context).colorScheme.primary,
+          icon: Icons.storefront,
+        ),
+      if (customer != null)
+        LocationMapMarker(
+          id: 'delivery',
+          label: 'Delivery',
+          coordinates: customer,
+          color: Theme.of(context).colorScheme.tertiary,
+          icon: Icons.location_on,
+        ),
+    ];
+    if (markers.isEmpty) {
+      return Container(
+        key: Key('delivery-map-unavailable-${delivery.id}'),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.map_outlined),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Map coordinates are unavailable for this older order. Use the address and Open in Maps fallback.',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final focus = delivery.status == OrderStatus.pickedUp
+        ? customer ?? kitchen
+        : kitchen ?? customer;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.route_outlined),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                delivery.status == OrderStatus.pickedUp
+                    ? 'Delivery location focus'
+                    : 'Kitchen pickup focus',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox(
+            key: Key('active-delivery-map-${delivery.id}'),
+            height: 260,
+            child: LocationMapView(
+              markers: markers,
+              initialCenter: focus,
+              fitMarkers: false,
+              initialZoom: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

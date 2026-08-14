@@ -107,7 +107,7 @@ class SupabaseRiderDeliveryRemoteDataSource
   @override
   Future<Object?> mine() {
     _requireSession();
-    return _client.rpc('list_my_rider_deliveries_v2');
+    return _client.rpc('list_my_rider_deliveries_v3');
   }
 
   @override

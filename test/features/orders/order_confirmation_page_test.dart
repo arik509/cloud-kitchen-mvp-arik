@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:cloud_kitchen_mvp/core/location/location_models.dart';
+import 'package:cloud_kitchen_mvp/core/location/location_service.dart';
 import 'package:cloud_kitchen_mvp/features/kitchen/domain/kitchen.dart';
 import 'package:cloud_kitchen_mvp/features/menu/domain/menu_item.dart';
 import 'package:cloud_kitchen_mvp/features/orders/data/order_repository.dart';
@@ -22,6 +24,7 @@ void main() {
       find.byKey(const Key('delivery-address')),
       '  Delivery Road  ',
     );
+    await _selectCurrentLocation(tester);
     await tester.scrollUntilVisible(
       find.byKey(const Key('place-order-button')),
       300,
@@ -39,6 +42,8 @@ void main() {
       'p_delivery_address': 'Delivery Road',
       'p_payment_method': 'cash_on_delivery',
       'p_transaction_id': null,
+      'p_delivery_latitude': 23.81,
+      'p_delivery_longitude': 90.41,
     });
     repository.completer.complete(
       const PlaceOrderResult(
@@ -78,6 +83,7 @@ void main() {
       find.byKey(const Key('bkash-transaction-id')),
       ' ab 12cd ',
     );
+    await _selectCurrentLocation(tester);
     await tester.scrollUntilVisible(
       find.byKey(const Key('place-order-button')),
       300,
@@ -103,6 +109,7 @@ void main() {
       find.byKey(const Key('delivery-address')),
       'Delivery Road',
     );
+    await _selectCurrentLocation(tester);
     await tester.scrollUntilVisible(
       find.byKey(const Key('place-order-button')),
       300,
@@ -112,6 +119,95 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('order-error')), findsOneWidget);
   });
+
+  testWidgets('shows both owner-enabled payment methods', (tester) async {
+    _useTallTestView(tester);
+    await tester.pumpWidget(
+      _app(
+        FakeOrderRepository(),
+        kitchen: _kitchen.copyWith(
+          acceptsBkash: true,
+          bkashNumber: '01700000000',
+          acceptsCod: true,
+        ),
+      ),
+    );
+    expect(find.byKey(const Key('payment-bkash')), findsOneWidget);
+    expect(find.byKey(const Key('payment-cod')), findsOneWidget);
+  });
+
+  testWidgets('supports bKash-only and COD-only kitchens', (tester) async {
+    _useTallTestView(tester);
+    await tester.pumpWidget(
+      _app(
+        FakeOrderRepository(),
+        kitchen: _kitchen.copyWith(
+          acceptsBkash: true,
+          bkashNumber: '01700000000',
+          acceptsCod: false,
+        ),
+      ),
+    );
+    expect(find.byKey(const Key('payment-bkash')), findsOneWidget);
+    expect(find.byKey(const Key('payment-cod')), findsNothing);
+
+    await tester.pumpWidget(_app(FakeOrderRepository()));
+    await tester.pump();
+    expect(find.byKey(const Key('payment-bkash')), findsNothing);
+    expect(find.byKey(const Key('payment-cod')), findsOneWidget);
+  });
+
+  testWidgets('blocks no-method and invalid bKash configurations', (
+    tester,
+  ) async {
+    _useTallTestView(tester);
+    await tester.pumpWidget(
+      _app(
+        FakeOrderRepository(),
+        kitchen: _kitchen.copyWith(
+          acceptsBkash: true,
+          bkashNumber: null,
+          acceptsCod: false,
+        ),
+      ),
+    );
+    expect(find.byKey(const Key('payment-bkash')), findsNothing);
+    expect(find.byKey(const Key('bkash-configuration-error')), findsOneWidget);
+    expect(find.byKey(const Key('no-payment-methods')), findsOneWidget);
+    final button = tester.widget<FilledButton>(
+      find.byKey(const Key('place-order-button')),
+    );
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('requires a confirmed delivery pin', (tester) async {
+    _useTallTestView(tester);
+    final repository = FakeOrderRepository();
+    await tester.pumpWidget(_app(repository));
+    await tester.enterText(
+      find.byKey(const Key('delivery-address')),
+      'Delivery Road',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('place-order-button')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('place-order-button')));
+    await tester.pump();
+    expect(find.byKey(const Key('delivery-location-error')), findsOneWidget);
+    expect(repository.calls, 0);
+  });
+}
+
+Future<void> _selectCurrentLocation(WidgetTester tester) async {
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('use-delivery-location')),
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(find.byKey(const Key('use-delivery-location')));
+  await tester.pumpAndSettle();
 }
 
 void _useTallTestView(WidgetTester tester) {
@@ -140,8 +236,20 @@ Widget _app(FakeOrderRepository repository, {Kitchen kitchen = _kitchen}) =>
         ),
         walletRepository: FakeWalletRepository(),
         orderRepository: repository,
+        locationService: const FakeLocationService(),
       ),
     );
+
+class FakeLocationService implements LocationService {
+  const FakeLocationService();
+
+  @override
+  Future<GeoCoordinates> determineLocation() async =>
+      const GeoCoordinates(latitude: 23.81, longitude: 90.41);
+
+  @override
+  Future<bool> openLocationSettings() async => true;
+}
 
 class FakeWalletRepository implements WalletRepository {
   @override

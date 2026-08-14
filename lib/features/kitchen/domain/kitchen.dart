@@ -25,6 +25,12 @@ class Kitchen {
   final String? bkashNumber;
   final bool acceptsCod;
 
+  bool get hasUsableBkash =>
+      acceptsBkash &&
+      RegExp(r'^(\+?88)?01[3-9][0-9]{8}$').hasMatch(bkashNumber ?? '');
+
+  bool get hasUsablePaymentMethod => hasUsableBkash || acceptsCod;
+
   factory Kitchen.fromMap(Map<String, dynamic> map) => Kitchen(
     id: map['id'] as String,
     ownerId: map['owner_id'] as String,
@@ -79,7 +85,7 @@ class Kitchen {
     'image_path': imagePath,
     'is_active': isActive,
     'accepts_bkash': acceptsBkash,
-    'bkash_number': bkashNumber,
+    'bkash_number': acceptsBkash ? bkashNumber : null,
     'accepts_cod': acceptsCod,
   };
 }

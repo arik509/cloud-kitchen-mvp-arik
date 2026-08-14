@@ -8,19 +8,32 @@ abstract interface class ExternalNavigation {
 class UrlExternalNavigation implements ExternalNavigation {
   const UrlExternalNavigation();
   @override
-  Future<bool> toCoordinates(double latitude, double longitude) => launchUrl(
+  Future<bool> toCoordinates(double latitude, double longitude) => _open(
     Uri.https('www.google.com', '/maps/dir/', {
       'api': '1',
       'destination': '$latitude,$longitude',
     }),
-    mode: LaunchMode.externalApplication,
   );
   @override
-  Future<bool> toAddress(String address) => launchUrl(
+  Future<bool> toAddress(String address) => _open(
     Uri.https('www.google.com', '/maps/dir/', {
       'api': '1',
       'destination': address,
     }),
-    mode: LaunchMode.externalApplication,
   );
+
+  Future<bool> _open(Uri uri) async {
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        return true;
+      }
+      return launchUrl(uri, mode: LaunchMode.platformDefault);
+    } catch (_) {
+      try {
+        return launchUrl(uri, mode: LaunchMode.platformDefault);
+      } catch (_) {
+        return false;
+      }
+    }
+  }
 }

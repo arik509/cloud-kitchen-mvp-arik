@@ -97,7 +97,8 @@ class SupabaseKitchenOrderRemoteDataSource
     final rows = await _client
         .from('orders')
         .select(
-          'id,kitchen_id,status,final_price,delivery_address,created_at,'
+          'id,kitchen_id,status,final_price,delivery_address,'
+          'delivery_latitude,delivery_longitude,created_at,'
           'kitchens!inner(owner_id),'
           'order_items(quantity,unit_price,menu_items(name)),'
           'order_payments(payment_method,payment_status,transaction_id,submitted_at)',

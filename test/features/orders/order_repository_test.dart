@@ -7,6 +7,8 @@ void main() {
     const request = PlaceOrderRequest(
       menuItemId: 'item-1',
       deliveryAddress: '  12 Test Road  ',
+      deliveryLatitude: 23.8,
+      deliveryLongitude: 90.4,
     );
 
     expect(request.toRpcParameters(), {
@@ -14,6 +16,8 @@ void main() {
       'p_delivery_address': '12 Test Road',
       'p_payment_method': 'cash_on_delivery',
       'p_transaction_id': null,
+      'p_delivery_latitude': 23.8,
+      'p_delivery_longitude': 90.4,
     });
     expect(
       request.toRpcParameters().keys,
@@ -49,6 +53,8 @@ void main() {
         const PlaceOrderRequest(
           menuItemId: 'item-1',
           deliveryAddress: 'Customer address',
+          deliveryLatitude: 23.8,
+          deliveryLongitude: 90.4,
         ),
       );
 
@@ -57,6 +63,8 @@ void main() {
         'p_delivery_address': 'Customer address',
         'p_payment_method': 'cash_on_delivery',
         'p_transaction_id': null,
+        'p_delivery_latitude': 23.8,
+        'p_delivery_longitude': 90.4,
       });
       expect(result.orderId, 'order-1');
       expect(result.authoritativeTotal, 240);
@@ -97,6 +105,7 @@ void main() {
       expect(orders.single.itemPrice, 240);
       expect(orders.single.status, OrderStatus.pending);
       expect(orders.single.finalPrice, 240);
+      expect(orders.single.deliveryCoordinates, isNull);
     },
   );
 
@@ -123,6 +132,13 @@ void main() {
       ).message,
       isNot(contains('SQL')),
     );
+  });
+
+  test('validates delivery-coordinate pairs and ranges', () {
+    expect(validateDeliveryCoordinates(23.8, 90.4), isNull);
+    expect(validateDeliveryCoordinates(null, 90.4), isNotNull);
+    expect(validateDeliveryCoordinates(91, 90.4), isNotNull);
+    expect(validateDeliveryCoordinates(23.8, -181), isNotNull);
   });
 }
 

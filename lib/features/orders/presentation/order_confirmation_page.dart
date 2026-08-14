@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/location/location_models.dart';
+import '../../../core/location/location_picker_page.dart';
+import '../../../core/location/location_service.dart';
 import '../../kitchen/domain/kitchen.dart';
 import '../../menu/domain/menu_item.dart';
 import '../../notifications/data/notification_dispatcher.dart';
@@ -18,6 +21,7 @@ class OrderConfirmationPage extends StatefulWidget {
     required this.walletRepository,
     required this.orderRepository,
     this.notificationDispatcher,
+    this.locationService = const GeolocatorLocationService(),
     super.key,
   });
 
@@ -27,6 +31,7 @@ class OrderConfirmationPage extends StatefulWidget {
   walletRepository; // Retained only for legacy test utilities.
   final OrderRepository orderRepository;
   final OrderNotificationDispatcher? notificationDispatcher;
+  final LocationService locationService;
 
   @override
   State<OrderConfirmationPage> createState() => _OrderConfirmationPageState();
@@ -40,17 +45,88 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
   bool _submitting = false;
   PlaceOrderResult? _result;
   String? _error;
+  GeoCoordinates? _deliveryLocation;
+  String? _locationError;
+  bool _locating = false;
 
   @override
   void initState() {
     super.initState();
-    _method = widget.kitchen.acceptsCod
-        ? PaymentMethod.cashOnDelivery
-        : PaymentMethod.bkash;
+    final methods = availableCheckoutPaymentMethods(widget.kitchen);
+    _method = methods.isNotEmpty ? methods.first : PaymentMethod.cashOnDelivery;
+  }
+
+  Future<void> _useCurrentLocation() async {
+    if (_locating) return;
+    setState(() {
+      _locating = true;
+      _locationError = null;
+    });
+    try {
+      final location = await widget.locationService.determineLocation();
+      if (!location.isValid) throw const FormatException();
+      if (!mounted) return;
+      setState(() => _deliveryLocation = location);
+    } on LocationException catch (error) {
+      if (mounted) setState(() => _locationError = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _locationError =
+              'Current location is unavailable. Choose a pin on the map.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _chooseDeliveryLocation() async {
+    final saved = _deliveryLocation;
+    final initial = await resolveInitialMapLocation(
+      savedLatitude: saved?.latitude,
+      savedLongitude: saved?.longitude,
+      currentLocation: widget.locationService.determineLocation,
+    );
+    if (!mounted) return;
+    final selected = await Navigator.push<GeoCoordinates>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(
+          initialLocation: initial,
+          currentLocation: widget.locationService.determineLocation,
+          title: 'Choose delivery location',
+          instruction: 'Tap the map where the rider should deliver.',
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _deliveryLocation = selected;
+      _locationError = null;
+    });
   }
 
   Future<void> _placeOrder() async {
-    if (_submitting || _result != null || !_formKey.currentState!.validate()) {
+    if (_submitting || _result != null) {
+      return;
+    }
+    final methods = availableCheckoutPaymentMethods(widget.kitchen);
+    if (methods.isEmpty) {
+      setState(
+        () => _error =
+            'This kitchen has no available payment method. Please contact the kitchen.',
+      );
+      return;
+    }
+    if (!_formKey.currentState!.validate()) return;
+    final location = _deliveryLocation;
+    final locationError = validateDeliveryCoordinates(
+      location?.latitude,
+      location?.longitude,
+    );
+    if (locationError != null) {
+      setState(() => _locationError = locationError);
       return;
     }
     setState(() {
@@ -66,6 +142,8 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
           transactionId: _method == PaymentMethod.bkash
               ? _transactionId.text
               : null,
+          deliveryLatitude: location!.latitude,
+          deliveryLongitude: location.longitude,
         ),
       );
       if (!mounted) return;
@@ -149,10 +227,85 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                     ),
                     const SizedBox(height: 14),
                     _CheckoutSection(
+                      title: 'Delivery location',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ListTile(
+                            key: const Key('delivery-location-state'),
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              _deliveryLocation == null
+                                  ? Icons.location_off_outlined
+                                  : Icons.check_circle,
+                              color: _deliveryLocation == null
+                                  ? Theme.of(context).colorScheme.outline
+                                  : Theme.of(context).colorScheme.primary,
+                            ),
+                            title: Text(
+                              _deliveryLocation == null
+                                  ? 'Not selected'
+                                  : 'Location selected',
+                            ),
+                            subtitle: const Text(
+                              'The pin is separate from delivery instructions.',
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              FilledButton.tonalIcon(
+                                key: const Key('use-delivery-location'),
+                                onPressed: _locating
+                                    ? null
+                                    : _useCurrentLocation,
+                                icon: _locating
+                                    ? const SizedBox.square(
+                                        dimension: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.my_location),
+                                label: Text(
+                                  _locating
+                                      ? 'Locating...'
+                                      : 'Use Current Location',
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                key: const Key('choose-delivery-location'),
+                                onPressed: _chooseDeliveryLocation,
+                                icon: const Icon(Icons.map_outlined),
+                                label: Text(
+                                  _deliveryLocation == null
+                                      ? 'Choose on Map'
+                                      : 'Edit on Map',
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_locationError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                _locationError!,
+                                key: const Key('delivery-location-error'),
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _CheckoutSection(
                       title: 'Payment method',
                       child: Column(
                         children: [
-                          if (widget.kitchen.acceptsBkash)
+                          if (widget.kitchen.hasUsableBkash)
                             _PaymentChoice(
                               key: const Key('payment-bkash'),
                               selected: _method == PaymentMethod.bkash,
@@ -164,7 +317,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                                   setState(() => _method = PaymentMethod.bkash),
                             ),
                           if (widget.kitchen.acceptsCod) ...[
-                            if (widget.kitchen.acceptsBkash)
+                            if (widget.kitchen.hasUsableBkash)
                               const SizedBox(height: 10),
                             _PaymentChoice(
                               key: const Key('payment-cod'),
@@ -177,6 +330,23 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                               ),
                             ),
                           ],
+                          if (widget.kitchen.acceptsBkash &&
+                              !widget.kitchen.hasUsableBkash)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                'bKash is temporarily unavailable because the kitchen receiving number is missing or invalid.',
+                                key: Key('bkash-configuration-error'),
+                              ),
+                            ),
+                          if (!widget.kitchen.hasUsablePaymentMethod)
+                            Text(
+                              'Ordering is unavailable until the kitchen enables a valid payment method.',
+                              key: const Key('no-payment-methods'),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
                           if (_method == PaymentMethod.bkash) ...[
                             const SizedBox(height: 14),
                             Container(
@@ -189,7 +359,7 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Send ${orderCurrency(widget.item.price)} to ${widget.kitchen.bkashNumber ?? 'the kitchen bKash number'}, then enter the Transaction ID below.',
+                                    'Send ${orderCurrency(widget.item.price)} to ${widget.kitchen.bkashNumber}, then enter the Transaction ID below.',
                                   ),
                                   const SizedBox(height: 6),
                                   const Text(
@@ -231,7 +401,9 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
             if (result == null)
               FilledButton.icon(
                 key: const Key('place-order-button'),
-                onPressed: _submitting ? null : _placeOrder,
+                onPressed: _submitting || !widget.kitchen.hasUsablePaymentMethod
+                    ? null
+                    : _placeOrder,
                 icon: _submitting
                     ? const SizedBox.square(
                         dimension: 18,
@@ -280,6 +452,11 @@ class _OrderConfirmationPageState extends State<OrderConfirmationPage> {
     );
   }
 }
+
+List<PaymentMethod> availableCheckoutPaymentMethods(Kitchen kitchen) => [
+  if (kitchen.hasUsableBkash) PaymentMethod.bkash,
+  if (kitchen.acceptsCod) PaymentMethod.cashOnDelivery,
+];
 
 class _CheckoutSection extends StatelessWidget {
   const _CheckoutSection({required this.title, required this.child});

@@ -7,7 +7,9 @@ void main() {
   test('maps available and assigned delivery data from secure RPCs', () async {
     final source = FakeRiderDeliverySource(
       availableResponse: [_deliveryMap(status: 'awaiting_rider')],
-      mineResponse: [_deliveryMap(status: 'rider_assigned')],
+      mineResponse: [
+        _deliveryMap(status: 'rider_assigned', includeDeliveryLocation: true),
+      ],
     );
     final repository = SupabaseRiderDeliveryRepository.withDataSource(source);
 
@@ -17,7 +19,10 @@ void main() {
     expect(available.single.status, OrderStatus.awaitingRider);
     expect(available.single.kitchenName, 'Secure Kitchen');
     expect(available.single.deliveryAddress, 'Delivery Road');
+    expect(available.single.deliveryCoordinates, isNull);
     expect(mine.single.status, OrderStatus.riderAssigned);
+    expect(mine.single.deliveryCoordinates!.latitude, 23.81);
+    expect(mine.single.deliveryCoordinates!.longitude, 90.41);
   });
 
   test(
@@ -101,7 +106,10 @@ void main() {
   });
 }
 
-Map<String, dynamic> _deliveryMap({required String status}) => {
+Map<String, dynamic> _deliveryMap({
+  required String status,
+  bool includeDeliveryLocation = false,
+}) => {
   'order_id': 'order-1',
   'kitchen_id': 'kitchen-1',
   'kitchen_name': 'Secure Kitchen',
@@ -109,6 +117,8 @@ Map<String, dynamic> _deliveryMap({required String status}) => {
   'kitchen_latitude': 23.8,
   'kitchen_longitude': 90.4,
   'delivery_address': 'Delivery Road',
+  if (includeDeliveryLocation) 'delivery_latitude': 23.81,
+  if (includeDeliveryLocation) 'delivery_longitude': 90.41,
   'status': status,
   'final_price': 250,
   'rider_fee': 40,

@@ -119,7 +119,12 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
     final selected = await Navigator.push<GeoCoordinates>(
       context,
       MaterialPageRoute(
-        builder: (_) => LocationPickerPage(initialLocation: initial),
+        builder: (_) => LocationPickerPage(
+          initialLocation: initial,
+          currentLocation: widget.locationService.determineLocation,
+          title: 'Choose kitchen location',
+          instruction: 'Tap the map to move the kitchen marker.',
+        ),
       ),
     );
     if (selected == null || !mounted) return;

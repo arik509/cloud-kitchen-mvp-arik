@@ -43,7 +43,7 @@ void main() {
     tester,
   ) async {
     final repository = FakeRiderRepository(
-      mine: [_delivery(OrderStatus.riderAssigned)],
+      mine: [_delivery(OrderStatus.riderAssigned, withCoordinates: true)],
       updateResponse: Future.value(
         const RiderDeliveryUpdate(
           orderId: 'order-1',
@@ -58,7 +58,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mark as picked up'), findsOneWidget);
-    await tester.tap(find.text('Mark as picked up'));
+    expect(find.byKey(const Key('map-marker-pickup')), findsOneWidget);
+    expect(find.byKey(const Key('map-marker-delivery')), findsOneWidget);
+    await tester.drag(
+      find.byKey(const Key('rider-deliveries-list')),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('advance-order-1')));
     await tester.pumpAndSettle();
     await tester.tap(
       find.widgetWithText(FilledButton, 'Mark as picked up').last,
@@ -66,6 +73,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.lastStatus, OrderStatus.pickedUp);
+  });
+
+  testWidgets('active old order handles missing map coordinates', (
+    tester,
+  ) async {
+    final repository = FakeRiderRepository(
+      mine: [_delivery(OrderStatus.riderAssigned)],
+    );
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Active'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('delivery-map-unavailable-order-1')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('delivered order appears only in history', (tester) async {
@@ -107,19 +131,24 @@ Widget _app(RiderDeliveryRepository repository) => MaterialApp(
   home: Scaffold(body: RiderDeliveriesPage(repository: repository)),
 );
 
-RiderDelivery _delivery(OrderStatus status) => RiderDelivery(
-  id: 'order-1',
-  kitchenId: 'kitchen-1',
-  kitchenName: 'Secure Kitchen',
-  kitchenAddress: 'Kitchen Road',
-  deliveryAddress: 'Delivery Road',
-  status: status,
-  finalPrice: 250,
-  riderFee: 40,
-  itemName: 'Rice Bowl',
-  quantity: 1,
-  createdAt: DateTime.utc(2026, 8, 13),
-);
+RiderDelivery _delivery(OrderStatus status, {bool withCoordinates = false}) =>
+    RiderDelivery(
+      id: 'order-1',
+      kitchenId: 'kitchen-1',
+      kitchenName: 'Secure Kitchen',
+      kitchenAddress: 'Kitchen Road',
+      kitchenLatitude: withCoordinates ? 23.8 : null,
+      kitchenLongitude: withCoordinates ? 90.4 : null,
+      deliveryLatitude: withCoordinates ? 23.81 : null,
+      deliveryLongitude: withCoordinates ? 90.41 : null,
+      deliveryAddress: 'Delivery Road',
+      status: status,
+      finalPrice: 250,
+      riderFee: 40,
+      itemName: 'Rice Bowl',
+      quantity: 1,
+      createdAt: DateTime.utc(2026, 8, 13),
+    );
 
 class FakeRiderRepository implements RiderDeliveryRepository {
   FakeRiderRepository({

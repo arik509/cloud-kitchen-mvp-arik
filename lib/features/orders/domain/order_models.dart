@@ -1,3 +1,4 @@
+import '../../../core/location/location_models.dart';
 import '../../payments/domain/payment_models.dart';
 
 enum OrderStatus {
@@ -55,12 +56,23 @@ class PlaceOrderRequest {
     required this.deliveryAddress,
     this.paymentMethod = PaymentMethod.cashOnDelivery,
     this.transactionId,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
   });
 
   final String menuItemId;
   final String deliveryAddress;
   final PaymentMethod paymentMethod;
   final String? transactionId;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
+
+  GeoCoordinates? get deliveryCoordinates {
+    final latitude = deliveryLatitude;
+    final longitude = deliveryLongitude;
+    if (validateDeliveryCoordinates(latitude, longitude) != null) return null;
+    return GeoCoordinates(latitude: latitude!, longitude: longitude!);
+  }
 
   Map<String, dynamic> toRpcParameters() => {
     'p_menu_item_id': menuItemId,
@@ -69,7 +81,17 @@ class PlaceOrderRequest {
     'p_transaction_id': paymentMethod == PaymentMethod.bkash
         ? normalizeBkashTransactionId(transactionId ?? '')
         : null,
+    'p_delivery_latitude': deliveryLatitude,
+    'p_delivery_longitude': deliveryLongitude,
   };
+}
+
+String? validateDeliveryCoordinates(double? latitude, double? longitude) {
+  if (latitude == null || longitude == null) {
+    return 'Choose a delivery location before placing the order';
+  }
+  final coordinates = GeoCoordinates(latitude: latitude, longitude: longitude);
+  return coordinates.isValid ? null : 'Choose a valid delivery location';
 }
 
 class PlaceOrderResult {
@@ -113,6 +135,8 @@ class CustomerOrder {
       status: PaymentStatus.verified,
     ),
     this.ratingStars,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
   });
 
   final String id;
@@ -126,6 +150,16 @@ class CustomerOrder {
   final DateTime createdAt;
   final OrderPayment payment;
   final int? ratingStars;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
+
+  GeoCoordinates? get deliveryCoordinates {
+    final latitude = deliveryLatitude;
+    final longitude = deliveryLongitude;
+    return validateDeliveryCoordinates(latitude, longitude) == null
+        ? GeoCoordinates(latitude: latitude!, longitude: longitude!)
+        : null;
+  }
 
   factory CustomerOrder.fromMap(Map<String, dynamic> map) {
     final kitchen = _firstMap(map['kitchens']);
@@ -145,6 +179,8 @@ class CustomerOrder {
       createdAt: DateTime.parse(map['created_at'] as String),
       payment: OrderPayment.fromMap(_firstMap(map['order_payments'])),
       ratingStars: (_firstMap(map['ratings'])?['stars'] as num?)?.toInt(),
+      deliveryLatitude: (map['delivery_latitude'] as num?)?.toDouble(),
+      deliveryLongitude: (map['delivery_longitude'] as num?)?.toDouble(),
     );
   }
 }
@@ -164,6 +200,8 @@ class KitchenOrder {
       method: PaymentMethod.demoWallet,
       status: PaymentStatus.verified,
     ),
+    this.deliveryLatitude,
+    this.deliveryLongitude,
   });
 
   final String id;
@@ -176,6 +214,8 @@ class KitchenOrder {
   final String deliveryAddress;
   final DateTime createdAt;
   final OrderPayment payment;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
 
   double get itemTotal => quantity * unitPrice;
 
@@ -195,6 +235,8 @@ class KitchenOrder {
       deliveryAddress: map['delivery_address'] as String,
       createdAt: DateTime.parse(map['created_at'] as String),
       payment: OrderPayment.fromMap(_firstMap(map['order_payments'])),
+      deliveryLatitude: (map['delivery_latitude'] as num?)?.toDouble(),
+      deliveryLongitude: (map['delivery_longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -209,6 +251,8 @@ class KitchenOrder {
     deliveryAddress: deliveryAddress,
     createdAt: createdAt,
     payment: payment,
+    deliveryLatitude: deliveryLatitude,
+    deliveryLongitude: deliveryLongitude,
   );
 }
 

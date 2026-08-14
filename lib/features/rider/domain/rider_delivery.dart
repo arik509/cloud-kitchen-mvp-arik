@@ -1,3 +1,4 @@
+import '../../../core/location/location_models.dart';
 import '../../orders/domain/order_models.dart';
 import '../../payments/domain/payment_models.dart';
 
@@ -16,6 +17,8 @@ class RiderDelivery {
     required this.createdAt,
     this.kitchenLatitude,
     this.kitchenLongitude,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     this.payment = const OrderPayment(
       method: PaymentMethod.demoWallet,
       status: PaymentStatus.verified,
@@ -28,6 +31,8 @@ class RiderDelivery {
   final String kitchenAddress;
   final double? kitchenLatitude;
   final double? kitchenLongitude;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
   final String deliveryAddress;
   final OrderStatus status;
   final double finalPrice;
@@ -37,6 +42,12 @@ class RiderDelivery {
   final DateTime createdAt;
   final OrderPayment payment;
 
+  GeoCoordinates? get kitchenCoordinates =>
+      _validCoordinates(kitchenLatitude, kitchenLongitude);
+
+  GeoCoordinates? get deliveryCoordinates =>
+      _validCoordinates(deliveryLatitude, deliveryLongitude);
+
   factory RiderDelivery.fromMap(Map<String, dynamic> map) => RiderDelivery(
     id: map['order_id'] as String,
     kitchenId: map['kitchen_id'] as String,
@@ -44,6 +55,8 @@ class RiderDelivery {
     kitchenAddress: map['kitchen_address'] as String,
     kitchenLatitude: (map['kitchen_latitude'] as num?)?.toDouble(),
     kitchenLongitude: (map['kitchen_longitude'] as num?)?.toDouble(),
+    deliveryLatitude: (map['delivery_latitude'] as num?)?.toDouble(),
+    deliveryLongitude: (map['delivery_longitude'] as num?)?.toDouble(),
     deliveryAddress: map['delivery_address'] as String,
     status: parseOrderStatus(map['status']),
     finalPrice: (map['final_price'] as num).toDouble(),
@@ -53,6 +66,12 @@ class RiderDelivery {
     createdAt: DateTime.parse(map['created_at'] as String),
     payment: OrderPayment.fromMap(map),
   );
+}
+
+GeoCoordinates? _validCoordinates(double? latitude, double? longitude) {
+  if (latitude == null || longitude == null) return null;
+  final coordinates = GeoCoordinates(latitude: latitude, longitude: longitude);
+  return coordinates.isValid ? coordinates : null;
 }
 
 class RiderDeliveryUpdate {
