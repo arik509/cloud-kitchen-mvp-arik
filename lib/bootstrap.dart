@@ -25,7 +25,7 @@ Future<void> bootstrap({required AppBuilder appBuilder}) async {
   } catch (_) {
     runApp(
       const StartupFailureApp(
-        title: 'Unable to start Cloud Kitchen',
+        title: 'Unable to start FoodCircle',
         message:
             'Supabase could not be initialized. Check the configuration '
             'and network connection, then restart the app.',
@@ -47,7 +47,7 @@ class StartupFailureApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Cloud Kitchen',
+    title: 'FoodCircle',
     home: Scaffold(
       body: SafeArea(
         child: Center(

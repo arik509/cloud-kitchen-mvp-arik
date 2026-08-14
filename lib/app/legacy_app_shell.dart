@@ -8,6 +8,7 @@ import '../features/chat/data/chat_repository.dart';
 import '../features/chat/presentation/order_chat_page.dart';
 import '../features/customer/data/customer_catalog_repository.dart';
 import '../features/customer/presentation/customer_discovery_page.dart';
+import '../features/finance/data/settlement_repository.dart';
 import '../features/kitchen/data/kitchen_image_repository.dart';
 import '../features/kitchen/presentation/kitchen_page.dart';
 import '../features/kitchen/presentation/owner_overview_page.dart';
@@ -185,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 builder: (_) => const SignupScreen(),
                               ),
                             ),
-                      child: const Text('New to Cloud Kitchen? Create account'),
+                      child: const Text('New to FoodCircle? Create account'),
                     ),
                   ],
                 ),
@@ -281,7 +282,7 @@ class _SignupScreenState extends State<SignupScreen> {
             const Center(child: AppBrandMark(compact: true)),
             const SizedBox(height: 18),
             Text(
-              'Join Cloud Kitchen',
+              'Join FoodCircle',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -483,6 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final riderRepository = SupabaseRiderDeliveryRepository(widget.client);
     final paymentRepository = SupabasePaymentRepository(widget.client);
     final ratingRepository = SupabaseRatingRepository(widget.client);
+    final settlementRepository = SupabaseSettlementRepository(widget.client);
     final notificationDispatcher = SupabaseNotificationDispatcher(
       widget.client,
     );
@@ -529,6 +531,7 @@ class _HomeScreenState extends State<HomeScreen> {
           kitchenRepository: SupabaseKitchenRepository(widget.client),
           menuRepository: SupabaseMenuRepository(widget.client),
           orderRepository: kitchenOrderRepository,
+          settlementRepository: settlementRepository,
         ),
         KitchenPage.supabase(Supabase.instance.client),
         KitchenOrdersPage(
@@ -548,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen> {
           paymentRepository: paymentRepository,
           notificationDispatcher: notificationDispatcher,
         ),
-        RiderEarningsPage(repository: riderRepository),
+        RiderEarningsPage(repository: settlementRepository),
         ProfilePage(
           notificationService: widget.notificationService,
           repository: accountProfileRepository,

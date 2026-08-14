@@ -355,7 +355,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
             const SizedBox(height: 4),
             Text(
               validPhone
-                  ? 'It will be sent to the mobile number registered on your Cloud Kitchen profile.'
+                  ? 'It will be sent to the mobile number registered on your FoodCircle profile.'
                   : 'Add a valid Bangladesh mobile number in Profile before refund processing.',
               key: Key(
                 validPhone ? 'refund-phone-ready' : 'refund-phone-warning',

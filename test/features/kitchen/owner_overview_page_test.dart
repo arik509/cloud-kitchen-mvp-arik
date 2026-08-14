@@ -1,4 +1,6 @@
 import 'package:cloud_kitchen_mvp/features/kitchen/data/kitchen_repository.dart';
+import 'package:cloud_kitchen_mvp/features/finance/data/settlement_repository.dart';
+import 'package:cloud_kitchen_mvp/features/finance/domain/settlement_models.dart';
 import 'package:cloud_kitchen_mvp/features/kitchen/domain/kitchen.dart';
 import 'package:cloud_kitchen_mvp/features/kitchen/presentation/owner_overview_page.dart';
 import 'package:cloud_kitchen_mvp/features/menu/data/menu_repository.dart';
@@ -24,6 +26,7 @@ void main() {
             kitchenRepository: FakeKitchenRepository(),
             menuRepository: FakeMenuRepository(),
             orderRepository: FakeKitchenOrderRepository(),
+            settlementRepository: FakeSettlementRepository(),
           ),
         ),
       ),
@@ -35,8 +38,38 @@ void main() {
     expect(find.text('Active menu'), findsOneWidget);
     expect(find.text('Pending orders'), findsOneWidget);
     expect(find.text('Verify payment'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('owner-revenue-summary')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Gross Sales'), findsOneWidget);
+    expect(find.text('FoodCircle Fee (5%)'), findsOneWidget);
+    expect(find.text('Rider Share (10%)'), findsOneWidget);
+    expect(find.text('Net Earnings (85%)'), findsOneWidget);
+    expect(find.text('৳850.00'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+class FakeSettlementRepository implements SettlementRepository {
+  @override
+  Future<OwnerRevenueSummary> fetchOwnerRevenue() async => OwnerRevenueSummary(
+    entries: [
+      OwnerSettlementEntry(
+        orderId: 'order-settled',
+        grossAmount: 1000,
+        ownerNetAmount: 850,
+        riderEarning: 100,
+        platformFee: 50,
+        createdAt: DateTime.utc(2026, 8, 14),
+      ),
+    ],
+  );
+
+  @override
+  Future<RiderEarningsSummary> fetchRiderEarnings() =>
+      throw UnimplementedError();
 }
 
 class FakeKitchenRepository implements KitchenRepository {

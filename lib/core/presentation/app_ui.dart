@@ -23,10 +23,12 @@ class AppBrandMark extends StatelessWidget {
           ),
         ],
       ),
-      child: Icon(
-        Icons.ramen_dining_rounded,
-        color: scheme.onPrimary,
-        size: compact ? 28 : 42,
+      clipBehavior: Clip.antiAlias,
+      child: Image.asset(
+        'assets/branding/foodcircle_icon.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
       ),
     );
   }

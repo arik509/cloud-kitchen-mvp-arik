@@ -43,7 +43,7 @@ class _CloudKitchenAppState extends State<CloudKitchenApp> {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Cloud Kitchen',
+    title: 'FoodCircle',
     theme: AppTheme.light,
     home: AuthGate(
       authRepository: widget.authRepository,

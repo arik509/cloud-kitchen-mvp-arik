@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/presentation/app_ui.dart';
+import '../../finance/data/settlement_repository.dart';
+import '../../finance/domain/settlement_models.dart';
 import '../../menu/data/menu_repository.dart';
 import '../../orders/data/kitchen_order_repository.dart';
 import '../../orders/domain/order_models.dart';
@@ -14,6 +16,7 @@ class OwnerOverviewPage extends StatefulWidget {
     required this.kitchenRepository,
     required this.menuRepository,
     required this.orderRepository,
+    required this.settlementRepository,
     super.key,
   });
 
@@ -21,6 +24,7 @@ class OwnerOverviewPage extends StatefulWidget {
   final KitchenRepository kitchenRepository;
   final MenuRepository menuRepository;
   final KitchenOrderRepository orderRepository;
+  final SettlementRepository settlementRepository;
 
   @override
   State<OwnerOverviewPage> createState() => _OwnerOverviewPageState();
@@ -42,6 +46,7 @@ class _OwnerOverviewPageState extends State<OwnerOverviewPage> {
     if (kitchen == null) return const _OwnerOverview();
     final items = await widget.menuRepository.fetchForKitchen(kitchen.id);
     final orders = await widget.orderRepository.fetchOwnerOrders();
+    final revenue = await widget.settlementRepository.fetchOwnerRevenue();
     return _OwnerOverview(
       kitchen: kitchen,
       activeItems: items.where((item) => item.isAvailable).length,
@@ -62,6 +67,7 @@ class _OwnerOverviewPageState extends State<OwnerOverviewPage> {
                 order.payment.status == PaymentStatus.awaitingVerification,
           )
           .length,
+      revenue: revenue,
     );
   }
 
@@ -170,11 +176,93 @@ class _OwnerOverviewPageState extends State<OwnerOverviewPage> {
                 ),
               ],
             ),
+            const SizedBox(height: 20),
+            _OwnerRevenueCard(revenue: overview.revenue),
           ],
         ),
       );
     },
   );
+}
+
+class _OwnerRevenueCard extends StatelessWidget {
+  const _OwnerRevenueCard({required this.revenue});
+
+  final OwnerRevenueSummary revenue;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    key: const Key('owner-revenue-summary'),
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppSectionHeader(
+            title: 'Delivered-order revenue',
+            subtitle: 'Internal settlement accounting',
+          ),
+          const SizedBox(height: 14),
+          _RevenueRow(
+            label: 'Gross Sales',
+            value: revenue.grossSales,
+            strong: true,
+          ),
+          _RevenueRow(
+            label: 'FoodCircle Fee (5%)',
+            value: -revenue.platformFees,
+          ),
+          _RevenueRow(label: 'Rider Share (10%)', value: -revenue.riderShare),
+          const Divider(),
+          _RevenueRow(
+            key: const Key('owner-net-earnings'),
+            label: 'Net Earnings (85%)',
+            value: revenue.ownerNetEarnings,
+            strong: true,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This ledger records settlement obligations; external payouts are handled separately.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _RevenueRow extends StatelessWidget {
+  const _RevenueRow({
+    required this.label,
+    required this.value,
+    this.strong = false,
+    super.key,
+  });
+
+  final String label;
+  final double value;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = value < 0
+        ? '-৳${(-value).toStringAsFixed(2)}'
+        : '৳${value.toStringAsFixed(2)}';
+    final style = strong
+        ? Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)
+        : Theme.of(context).textTheme.bodyMedium;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text(amount, style: style),
+        ],
+      ),
+    );
+  }
 }
 
 class _MetricCard extends StatelessWidget {
@@ -229,6 +317,7 @@ class _OwnerOverview {
     this.pendingOrders = 0,
     this.activeOrders = 0,
     this.paymentAttention = 0,
+    this.revenue = const OwnerRevenueSummary(entries: []),
   });
 
   final Kitchen? kitchen;
@@ -236,4 +325,5 @@ class _OwnerOverview {
   final int pendingOrders;
   final int activeOrders;
   final int paymentAttention;
+  final OwnerRevenueSummary revenue;
 }

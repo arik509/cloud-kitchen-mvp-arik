@@ -85,8 +85,8 @@ class FirebasePushNotificationService implements PushNotificationService {
 
   static const _channel = AndroidNotificationChannel(
     'cloud_kitchen_messages',
-    'Order messages',
-    description: 'Customer and kitchen order chat messages',
+    'FoodCircle order messages',
+    description: 'FoodCircle customer and kitchen order chat messages',
     importance: Importance.high,
   );
   final PushTokenRepository _tokens;
@@ -221,13 +221,14 @@ class FirebasePushNotificationService implements PushNotificationService {
     final payload = jsonEncode(message.data);
     await _localNotifications.show(
       id: (eventId ?? message.messageId ?? payload).hashCode & 0x7fffffff,
-      title: notification.title ?? 'Cloud Kitchen',
+      title: notification.title ?? 'FoodCircle',
       body: notification.body,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'cloud_kitchen_messages',
-          'Order messages',
-          channelDescription: 'Customer and kitchen order chat messages',
+          'FoodCircle order messages',
+          channelDescription:
+              'FoodCircle customer and kitchen order chat messages',
           importance: Importance.high,
           priority: Priority.high,
         ),
