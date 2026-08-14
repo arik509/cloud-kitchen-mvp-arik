@@ -29,7 +29,18 @@ class SupabaseSettlementRepository implements SettlementRepository {
     } on SettlementException {
       rethrow;
     } on PostgrestException catch (error) {
+      // If the RPC doesn't exist yet or the rider has no settlements,
+      // return an empty summary instead of showing an error screen.
+      final msg = error.message.toLowerCase();
+      if (msg.contains('does not exist') ||
+          msg.contains('could not find') ||
+          msg.contains('rider_role_required')) {
+        return const RiderEarningsSummary(entries: []);
+      }
       throw SettlementException.fromBackend(error.message);
+    } on FormatException {
+      // Null / empty response — no settlements yet.
+      return const RiderEarningsSummary(entries: []);
     } catch (_) {
       throw const SettlementException(
         'The rider earnings response could not be read.',

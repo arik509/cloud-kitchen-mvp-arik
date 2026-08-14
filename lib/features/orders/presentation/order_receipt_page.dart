@@ -96,7 +96,7 @@ class OrderReceiptPage extends StatelessWidget {
     final mutedColor = PdfColor.fromHex('#6E6E73');
 
     final totalLabel = 'Total';
-    final total = '৳${order.finalPrice.toStringAsFixed(2)}';
+    final total = 'BDT ${order.finalPrice.toStringAsFixed(2)}';
     final methodLabel = paymentMethodLabel(order.payment.method);
     final statusStr = paymentStatusLabel(
       order.payment.method,
@@ -291,7 +291,7 @@ class OrderReceiptPage extends StatelessWidget {
                   pw.SizedBox(
                     width: 70,
                     child: pw.Text(
-                      '৳${order.itemPrice.toStringAsFixed(2)}',
+                      'BDT ${order.itemPrice.toStringAsFixed(2)}',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(fontSize: 11, color: textColor),
                     ),
@@ -299,7 +299,7 @@ class OrderReceiptPage extends StatelessWidget {
                   pw.SizedBox(
                     width: 80,
                     child: pw.Text(
-                      '৳${order.finalPrice.toStringAsFixed(2)}',
+                      'BDT ${order.finalPrice.toStringAsFixed(2)}',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                         fontSize: 11,
