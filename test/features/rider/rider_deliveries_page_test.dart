@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:cloud_kitchen_mvp/features/orders/domain/order_models.dart';
+import 'package:cloud_kitchen_mvp/features/payments/data/payment_repository.dart';
+import 'package:cloud_kitchen_mvp/features/payments/domain/payment_models.dart';
 import 'package:cloud_kitchen_mvp/features/rider/data/rider_delivery_repository.dart';
 import 'package:cloud_kitchen_mvp/features/rider/domain/rider_delivery.dart';
 import 'package:cloud_kitchen_mvp/features/rider/presentation/rider_deliveries_page.dart';
@@ -60,6 +62,8 @@ void main() {
     expect(find.text('Mark as picked up'), findsOneWidget);
     expect(find.byKey(const Key('map-marker-pickup')), findsOneWidget);
     expect(find.byKey(const Key('map-marker-delivery')), findsOneWidget);
+    expect(find.textContaining('Open pickup'), findsNothing);
+    expect(find.textContaining('Open delivery'), findsNothing);
     await tester.drag(
       find.byKey(const Key('rider-deliveries-list')),
       const Offset(0, -500),
@@ -90,6 +94,42 @@ void main() {
       find.byKey(const Key('delivery-map-unavailable-order-1')),
       findsOneWidget,
     );
+    expect(
+      find.text('Delivery location not available for this order.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('assigned rider confirms authoritative COD collection', (
+    tester,
+  ) async {
+    final paymentRepository = FakePaymentRepository();
+    final repository = FakeRiderRepository(
+      mine: [
+        _delivery(
+          OrderStatus.pickedUp,
+          payment: const OrderPayment(
+            method: PaymentMethod.cashOnDelivery,
+            status: PaymentStatus.codPending,
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(repository, paymentRepository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Active'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('cash-collected-order-1')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('cash-collected-order-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Cash Collected').last);
+    await tester.pumpAndSettle();
+
+    expect(paymentRepository.orderIds, ['order-1']);
   });
 
   testWidgets('delivered order appears only in history', (tester) async {
@@ -127,28 +167,67 @@ void main() {
   });
 }
 
-Widget _app(RiderDeliveryRepository repository) => MaterialApp(
-  home: Scaffold(body: RiderDeliveriesPage(repository: repository)),
+Widget _app(
+  RiderDeliveryRepository repository, [
+  PaymentRepository? paymentRepository,
+]) => MaterialApp(
+  home: Scaffold(
+    body: RiderDeliveriesPage(
+      repository: repository,
+      paymentRepository: paymentRepository,
+    ),
+  ),
 );
 
-RiderDelivery _delivery(OrderStatus status, {bool withCoordinates = false}) =>
-    RiderDelivery(
-      id: 'order-1',
-      kitchenId: 'kitchen-1',
-      kitchenName: 'Secure Kitchen',
-      kitchenAddress: 'Kitchen Road',
-      kitchenLatitude: withCoordinates ? 23.8 : null,
-      kitchenLongitude: withCoordinates ? 90.4 : null,
-      deliveryLatitude: withCoordinates ? 23.81 : null,
-      deliveryLongitude: withCoordinates ? 90.41 : null,
-      deliveryAddress: 'Delivery Road',
-      status: status,
-      finalPrice: 250,
-      riderFee: 40,
-      itemName: 'Rice Bowl',
-      quantity: 1,
-      createdAt: DateTime.utc(2026, 8, 13),
-    );
+RiderDelivery _delivery(
+  OrderStatus status, {
+  bool withCoordinates = false,
+  OrderPayment payment = const OrderPayment(
+    method: PaymentMethod.demoWallet,
+    status: PaymentStatus.verified,
+  ),
+}) => RiderDelivery(
+  id: 'order-1',
+  kitchenId: 'kitchen-1',
+  kitchenName: 'Secure Kitchen',
+  kitchenAddress: 'Kitchen Road',
+  kitchenLatitude: withCoordinates ? 23.8 : null,
+  kitchenLongitude: withCoordinates ? 90.4 : null,
+  deliveryLatitude: withCoordinates ? 23.81 : null,
+  deliveryLongitude: withCoordinates ? 90.41 : null,
+  deliveryAddress: 'Delivery Road',
+  status: status,
+  finalPrice: 250,
+  riderFee: 40,
+  itemName: 'Rice Bowl',
+  quantity: 1,
+  createdAt: DateTime.utc(2026, 8, 13),
+  payment: payment,
+);
+
+class FakePaymentRepository implements PaymentRepository {
+  final List<String> orderIds = [];
+
+  @override
+  Future<double> confirmCodCollection(String orderId) async {
+    orderIds.add(orderId);
+    return 250;
+  }
+
+  @override
+  Future<OrderPayment> markRefundCompleted(String orderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<OrderPayment> reviewBkash(String orderId, {required bool verify}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<OrderPayment> submitBkashTransaction(
+    String orderId,
+    String transactionId,
+  ) => throw UnimplementedError();
+}
 
 class FakeRiderRepository implements RiderDeliveryRepository {
   FakeRiderRepository({

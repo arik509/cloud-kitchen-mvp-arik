@@ -4,6 +4,7 @@ import 'package:cloud_kitchen_mvp/features/customer/data/customer_catalog_reposi
 import 'package:cloud_kitchen_mvp/features/customer/domain/nearby_kitchen.dart';
 import 'package:cloud_kitchen_mvp/features/customer/presentation/customer_menu_page.dart';
 import 'package:cloud_kitchen_mvp/features/kitchen/domain/kitchen.dart';
+import 'package:cloud_kitchen_mvp/features/kitchen/data/kitchen_image_repository.dart';
 import 'package:cloud_kitchen_mvp/features/menu/data/menu_image_repository.dart';
 import 'package:cloud_kitchen_mvp/features/menu/domain/menu_item.dart';
 import 'package:cloud_kitchen_mvp/features/orders/data/order_repository.dart';
@@ -23,6 +24,7 @@ void main() {
           kitchen: kitchen,
           catalogRepository: FakeCatalog(),
           imageRepository: FakeImageRepository(),
+          kitchenImageRepository: FakeKitchenImageRepository(),
           walletRepository: FakeWalletRepository(),
           orderRepository: FakeOrderRepository(),
         ),
@@ -65,6 +67,28 @@ void main() {
     expect(catalog.fetchCalls, 2);
     expect(find.byKey(const Key('customer-menu-empty')), findsOneWidget);
   });
+
+  testWidgets('refreshes persisted kitchen payment settings', (tester) async {
+    final catalog = FakeCatalog(
+      refreshedKitchen: kitchen.copyWith(
+        acceptsBkash: true,
+        bkashNumber: '01700000000',
+        acceptsCod: true,
+      ),
+    );
+    await tester.pumpWidget(_app(catalog));
+    await tester.pumpAndSettle();
+
+    expect(find.text('bKash'), findsNothing);
+    await tester.drag(
+      find.byKey(const Key('customer-menu-list')),
+      const Offset(0, 400),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('bKash'), findsOneWidget);
+    expect(find.text('Cash on Delivery'), findsOneWidget);
+  });
 }
 
 const kitchen = Kitchen(
@@ -79,17 +103,26 @@ Widget _app(CustomerCatalogRepository catalog) => MaterialApp(
     kitchen: kitchen,
     catalogRepository: catalog,
     imageRepository: FakeImageRepository(),
+    kitchenImageRepository: FakeKitchenImageRepository(),
     walletRepository: FakeWalletRepository(),
     orderRepository: FakeOrderRepository(),
   ),
 );
 
 class FakeCatalog implements CustomerCatalogRepository {
-  FakeCatalog({this.itemsResult, this.responses = const []});
+  FakeCatalog({
+    this.itemsResult,
+    this.responses = const [],
+    this.refreshedKitchen = kitchen,
+  });
 
   final Future<List<MenuItem>>? itemsResult;
   final List<Future<List<MenuItem>>> responses;
+  final Kitchen refreshedKitchen;
   int fetchCalls = 0;
+
+  @override
+  Future<Kitchen> fetchKitchen(String kitchenId) async => refreshedKitchen;
 
   @override
   Future<List<MenuItem>> fetchAvailableMenuItems(String kitchenId) {
@@ -129,6 +162,21 @@ class FakeImageRepository implements MenuImageRepository {
     required String ownerId,
     required String kitchenId,
     required String menuItemId,
+    required PickedMenuImage image,
+  }) async => 'path';
+}
+
+class FakeKitchenImageRepository implements KitchenImageRepository {
+  @override
+  Future<void> delete(String path) async {}
+
+  @override
+  String publicUrl(String path) => 'https://kitchens.example.test/$path';
+
+  @override
+  Future<String> upload({
+    required String ownerId,
+    required String kitchenId,
     required PickedMenuImage image,
   }) async => 'path';
 }

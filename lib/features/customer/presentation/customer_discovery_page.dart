@@ -108,6 +108,7 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
           kitchen: nearby.kitchen,
           catalogRepository: widget.catalogRepository,
           imageRepository: widget.imageRepository,
+          kitchenImageRepository: widget.kitchenImageRepository,
           walletRepository: widget.walletRepository,
           orderRepository: widget.orderRepository,
           ratingAverage: nearby.averageRating,
@@ -259,6 +260,23 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 7),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                if (nearby.kitchen.hasUsableBkash)
+                                  const _MarketplaceBadge(
+                                    icon: Icons.phone_android,
+                                    label: 'bKash',
+                                  ),
+                                if (nearby.kitchen.acceptsCod)
+                                  const _MarketplaceBadge(
+                                    icon: Icons.payments_outlined,
+                                    label: 'COD',
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -304,6 +322,30 @@ class _CustomerDiscoveryPageState extends State<CustomerDiscoveryPage> {
       onAction: _retry,
     );
   }
+}
+
+class _MarketplaceBadge extends StatelessWidget {
+  const _MarketplaceBadge({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14),
+        const SizedBox(width: 4),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ],
+    ),
+  );
 }
 
 class KitchenImageViewAdapter implements MenuImageRepository {

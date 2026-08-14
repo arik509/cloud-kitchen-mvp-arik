@@ -7,6 +7,8 @@ import '../domain/nearby_kitchen.dart';
 abstract interface class CustomerCatalogRepository {
   Future<List<Kitchen>> fetchKitchensWithCoordinates();
 
+  Future<Kitchen> fetchKitchen(String kitchenId);
+
   Future<Map<String, KitchenImageReference>> fetchRepresentativeImages();
 
   Future<List<MenuItem>> fetchAvailableMenuItems(String kitchenId);
@@ -17,15 +19,30 @@ class SupabaseCustomerCatalogRepository implements CustomerCatalogRepository {
 
   final SupabaseClient _client;
 
+  static const _kitchenColumns =
+      'id,owner_id,name,address,latitude,longitude,image_path,is_active,'
+      'accepts_bkash,bkash_number,accepts_cod';
+
+  @override
+  Future<Kitchen> fetchKitchen(String kitchenId) async {
+    try {
+      final row = await _client
+          .from('kitchens')
+          .select(_kitchenColumns)
+          .eq('id', kitchenId)
+          .single();
+      return Kitchen.fromMap(row);
+    } on PostgrestException catch (error) {
+      throw CustomerCatalogException(error.message);
+    }
+  }
+
   @override
   Future<List<Kitchen>> fetchKitchensWithCoordinates() async {
     try {
       final rows = await _client
           .from('kitchens')
-          .select(
-            'id,owner_id,name,address,latitude,longitude,image_path,is_active,'
-            'accepts_bkash,bkash_number,accepts_cod',
-          )
+          .select(_kitchenColumns)
           .eq('is_active', true)
           .not('latitude', 'is', null)
           .not('longitude', 'is', null);

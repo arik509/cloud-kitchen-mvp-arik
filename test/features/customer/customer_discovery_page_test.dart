@@ -119,6 +119,10 @@ class FakeCatalog implements CustomerCatalogRepository {
   final List<MenuItem> items;
 
   @override
+  Future<Kitchen> fetchKitchen(String kitchenId) async =>
+      kitchens.firstWhere((kitchen) => kitchen.id == kitchenId);
+
+  @override
   Future<List<Kitchen>> fetchKitchensWithCoordinates() async => kitchens;
 
   @override

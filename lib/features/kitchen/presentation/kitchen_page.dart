@@ -422,6 +422,29 @@ class _KitchenPageState extends State<KitchenPage> {
                           ? 'Location added'
                           : 'Location not added',
                     ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      key: const Key('owner-payment-methods'),
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (kitchen.hasUsableBkash)
+                          const Chip(
+                            avatar: Icon(Icons.phone_android, size: 18),
+                            label: Text('bKash enabled'),
+                          ),
+                        if (kitchen.acceptsCod)
+                          const Chip(
+                            avatar: Icon(Icons.payments_outlined, size: 18),
+                            label: Text('COD enabled'),
+                          ),
+                        if (kitchen.acceptsBkash && !kitchen.hasUsableBkash)
+                          const Chip(
+                            avatar: Icon(Icons.warning_amber_rounded, size: 18),
+                            label: Text('Fix bKash number'),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),

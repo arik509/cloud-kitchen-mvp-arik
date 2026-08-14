@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../kitchen/domain/kitchen.dart';
+import '../../kitchen/data/kitchen_image_repository.dart';
 import '../../menu/data/menu_image_repository.dart';
 import '../../menu/domain/menu_item.dart';
 import '../../menu/presentation/menu_image_view.dart';
@@ -15,6 +16,7 @@ class CustomerMenuPage extends StatefulWidget {
     required this.kitchen,
     required this.catalogRepository,
     required this.imageRepository,
+    required this.kitchenImageRepository,
     required this.walletRepository,
     required this.orderRepository,
     this.ratingAverage = 0,
@@ -26,6 +28,7 @@ class CustomerMenuPage extends StatefulWidget {
   final Kitchen kitchen;
   final CustomerCatalogRepository catalogRepository;
   final MenuImageRepository imageRepository;
+  final KitchenImageRepository kitchenImageRepository;
   final WalletRepository walletRepository;
   final OrderRepository orderRepository;
   final double ratingAverage;
@@ -38,23 +41,28 @@ class CustomerMenuPage extends StatefulWidget {
 
 class _CustomerMenuPageState extends State<CustomerMenuPage> {
   late Future<List<MenuItem>> _items;
+  late Kitchen _kitchen;
 
   @override
   void initState() {
     super.initState();
+    _kitchen = widget.kitchen;
     _items = widget.catalogRepository.fetchAvailableMenuItems(
       widget.kitchen.id,
     );
   }
 
   Future<void> _refresh() async {
+    final kitchenFuture = widget.catalogRepository.fetchKitchen(_kitchen.id);
     final future = widget.catalogRepository.fetchAvailableMenuItems(
-      widget.kitchen.id,
+      _kitchen.id,
     );
     setState(() {
       _items = future;
     });
+    final refreshedKitchen = await kitchenFuture;
     await future;
+    if (mounted) setState(() => _kitchen = refreshedKitchen);
   }
 
   Future<void> _confirm(MenuItem item) async {
@@ -62,7 +70,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
       context,
       MaterialPageRoute(
         builder: (_) => OrderConfirmationPage(
-          kitchen: widget.kitchen,
+          kitchen: _kitchen,
           item: item,
           walletRepository: widget.walletRepository,
           orderRepository: widget.orderRepository,
@@ -75,7 +83,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.kitchen.name)),
+    appBar: AppBar(title: Text(_kitchen.name)),
     body: RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<MenuItem>>(
@@ -131,42 +139,78 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
             itemBuilder: (context, index) {
               if (index == 0) {
                 final methods = <String>[
-                  if (widget.kitchen.acceptsBkash) 'bKash',
-                  if (widget.kitchen.acceptsCod) 'Cash on Delivery',
+                  if (_kitchen.hasUsableBkash) 'bKash',
+                  if (_kitchen.acceptsCod) 'Cash on Delivery',
                 ];
                 return Card(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+                  clipBehavior: Clip.antiAlias,
                   child: Padding(
-                    padding: const EdgeInsets.all(18),
+                    padding: EdgeInsets.zero,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.kitchen.name,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                        _KitchenCover(
+                          imageUrl: _kitchen.imagePath == null
+                              ? null
+                              : widget.kitchenImageRepository.publicUrl(
+                                  _kitchen.imagePath!,
+                                ),
                         ),
-                        Text(widget.kitchen.address),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star_rounded,
-                              color: Colors.amber.shade700,
-                            ),
-                            Text(
-                              widget.ratingCount == 0
-                                  ? ' New kitchen'
-                                  : ' ${widget.ratingAverage.toStringAsFixed(1)} (${widget.ratingCount})',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 6,
-                          children: methods
-                              .map((method) => Chip(label: Text(method)))
-                              .toList(),
+                        Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _kitchen.name,
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Expanded(child: Text(_kitchen.address)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.star_rounded,
+                                    color: Colors.amber.shade700,
+                                  ),
+                                  Text(
+                                    widget.ratingCount == 0
+                                        ? ' New kitchen'
+                                        : ' ${widget.ratingAverage.toStringAsFixed(1)} (${widget.ratingCount})',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                children: methods
+                                    .map(
+                                      (method) => Chip(
+                                        avatar: Icon(
+                                          method == 'bKash'
+                                              ? Icons.phone_android
+                                              : Icons.payments_outlined,
+                                          size: 17,
+                                        ),
+                                        label: Text(method),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -217,5 +261,41 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
         },
       ),
     ),
+  );
+}
+
+class _KitchenCover extends StatelessWidget {
+  const _KitchenCover({this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl;
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        key: const Key('customer-kitchen-cover'),
+        height: 210,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const _KitchenCoverFallback(),
+      );
+    }
+    return const _KitchenCoverFallback();
+  }
+}
+
+class _KitchenCoverFallback extends StatelessWidget {
+  const _KitchenCoverFallback();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('customer-kitchen-cover-fallback'),
+    height: 210,
+    width: double.infinity,
+    color: Theme.of(context).colorScheme.primaryContainer,
+    alignment: Alignment.center,
+    child: const Icon(Icons.storefront_rounded, size: 72),
   );
 }
