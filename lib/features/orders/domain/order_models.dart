@@ -1,3 +1,5 @@
+import '../../payments/domain/payment_models.dart';
+
 enum OrderStatus {
   pending,
   accepted,
@@ -51,14 +53,22 @@ class PlaceOrderRequest {
   const PlaceOrderRequest({
     required this.menuItemId,
     required this.deliveryAddress,
+    this.paymentMethod = PaymentMethod.cashOnDelivery,
+    this.transactionId,
   });
 
   final String menuItemId;
   final String deliveryAddress;
+  final PaymentMethod paymentMethod;
+  final String? transactionId;
 
   Map<String, dynamic> toRpcParameters() => {
     'p_menu_item_id': menuItemId,
     'p_delivery_address': deliveryAddress.trim(),
+    'p_payment_method': paymentMethodValue(paymentMethod),
+    'p_transaction_id': paymentMethod == PaymentMethod.bkash
+        ? normalizeBkashTransactionId(transactionId ?? '')
+        : null,
   };
 }
 
@@ -66,18 +76,24 @@ class PlaceOrderResult {
   const PlaceOrderResult({
     required this.orderId,
     required this.authoritativeTotal,
-    required this.walletBalance,
+    this.walletBalance,
+    this.paymentMethod = PaymentMethod.demoWallet,
+    this.paymentStatus = PaymentStatus.verified,
   });
 
   final String orderId;
   final double authoritativeTotal;
-  final double walletBalance;
+  final double? walletBalance;
+  final PaymentMethod paymentMethod;
+  final PaymentStatus paymentStatus;
 
   factory PlaceOrderResult.fromRpc(Map<String, dynamic> map) =>
       PlaceOrderResult(
         orderId: map['order_id'] as String,
         authoritativeTotal: (map['authoritative_total'] as num).toDouble(),
-        walletBalance: (map['wallet_balance'] as num).toDouble(),
+        walletBalance: (map['wallet_balance'] as num?)?.toDouble(),
+        paymentMethod: parsePaymentMethod(map['payment_method']),
+        paymentStatus: parsePaymentStatus(map['payment_status']),
       );
 }
 
@@ -92,6 +108,11 @@ class CustomerOrder {
     required this.finalPrice,
     required this.deliveryAddress,
     required this.createdAt,
+    this.payment = const OrderPayment(
+      method: PaymentMethod.demoWallet,
+      status: PaymentStatus.verified,
+    ),
+    this.ratingStars,
   });
 
   final String id;
@@ -103,6 +124,8 @@ class CustomerOrder {
   final double finalPrice;
   final String deliveryAddress;
   final DateTime createdAt;
+  final OrderPayment payment;
+  final int? ratingStars;
 
   factory CustomerOrder.fromMap(Map<String, dynamic> map) {
     final kitchen = _firstMap(map['kitchens']);
@@ -120,6 +143,8 @@ class CustomerOrder {
       finalPrice: (map['final_price'] as num).toDouble(),
       deliveryAddress: map['delivery_address'] as String,
       createdAt: DateTime.parse(map['created_at'] as String),
+      payment: OrderPayment.fromMap(_firstMap(map['order_payments'])),
+      ratingStars: (_firstMap(map['ratings'])?['stars'] as num?)?.toInt(),
     );
   }
 }
@@ -135,6 +160,10 @@ class KitchenOrder {
     required this.finalPrice,
     required this.deliveryAddress,
     required this.createdAt,
+    this.payment = const OrderPayment(
+      method: PaymentMethod.demoWallet,
+      status: PaymentStatus.verified,
+    ),
   });
 
   final String id;
@@ -146,6 +175,7 @@ class KitchenOrder {
   final double finalPrice;
   final String deliveryAddress;
   final DateTime createdAt;
+  final OrderPayment payment;
 
   double get itemTotal => quantity * unitPrice;
 
@@ -164,6 +194,7 @@ class KitchenOrder {
       finalPrice: (map['final_price'] as num).toDouble(),
       deliveryAddress: map['delivery_address'] as String,
       createdAt: DateTime.parse(map['created_at'] as String),
+      payment: OrderPayment.fromMap(_firstMap(map['order_payments'])),
     );
   }
 
@@ -177,6 +208,7 @@ class KitchenOrder {
     finalPrice: finalPrice,
     deliveryAddress: deliveryAddress,
     createdAt: createdAt,
+    payment: payment,
   );
 }
 

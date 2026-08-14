@@ -8,6 +8,7 @@ class NotificationNavigationHandler extends StatefulWidget {
     required this.service,
     required this.chatEnabled,
     required this.onOpenChat,
+    this.onOpenOrder,
     required this.child,
     super.key,
   });
@@ -15,6 +16,7 @@ class NotificationNavigationHandler extends StatefulWidget {
   final PushNotificationService service;
   final bool chatEnabled;
   final ValueChanged<NotificationDestination> onOpenChat;
+  final ValueChanged<NotificationDestination>? onOpenOrder;
   final Widget child;
 
   @override
@@ -48,14 +50,20 @@ class _NotificationNavigationHandlerState
   }
 
   void _handleDestination() {
-    if (!mounted || !widget.chatEnabled) return;
+    if (!mounted) return;
     final destination = widget.service.pendingDestination.value;
-    if (destination == null ||
-        destination.type != NotificationEventType.chatMessage) {
+    if (destination == null) return;
+    if (destination.type == NotificationEventType.chatMessage &&
+        !widget.chatEnabled) {
       return;
     }
     widget.service.consumeDestination(destination);
-    widget.onOpenChat(destination);
+    if (destination.type == NotificationEventType.chatMessage &&
+        widget.chatEnabled) {
+      widget.onOpenChat(destination);
+    } else {
+      widget.onOpenOrder?.call(destination);
+    }
   }
 
   @override

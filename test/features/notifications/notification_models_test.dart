@@ -43,5 +43,13 @@ void main() {
       parseNotificationEventType('delivered'),
       NotificationEventType.delivered,
     );
+    expect(
+      parseNotificationEventType('bkash_verified'),
+      NotificationEventType.bkashVerified,
+    );
+    expect(
+      parseNotificationEventType('refund_pending'),
+      NotificationEventType.refundPending,
+    );
   });
 }

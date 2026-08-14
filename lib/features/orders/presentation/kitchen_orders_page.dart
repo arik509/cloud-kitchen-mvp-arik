@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../chat/data/chat_repository.dart';
 import '../../chat/presentation/order_chat_page.dart';
+import '../../notifications/data/notification_dispatcher.dart';
+import '../../payments/data/payment_repository.dart';
+import '../../payments/domain/payment_models.dart';
 import '../data/kitchen_order_repository.dart';
 import '../domain/order_models.dart';
 import 'order_ui.dart';
@@ -14,11 +17,15 @@ class KitchenOrdersPage extends StatefulWidget {
   const KitchenOrdersPage({
     required this.repository,
     this.chatRepository,
+    this.paymentRepository,
+    this.notificationDispatcher,
     super.key,
   });
 
   final KitchenOrderRepository repository;
   final ChatRepository? chatRepository;
+  final PaymentRepository? paymentRepository;
+  final OrderNotificationDispatcher? notificationDispatcher;
 
   @override
   State<KitchenOrdersPage> createState() => _KitchenOrdersPageState();
@@ -99,6 +106,10 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     setState(() => _updating.add(order.id));
     try {
       final result = await widget.repository.updateStatus(order.id, target);
+      await dispatchOrderEventsBestEffort(
+        widget.notificationDispatcher,
+        order.id,
+      );
       if (!mounted) return;
       await _refresh(silent: true);
       if (!mounted) return;
@@ -118,6 +129,97 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
       await _refresh(silent: true);
+    } finally {
+      if (mounted) setState(() => _updating.remove(order.id));
+    }
+  }
+
+  Future<void> _reviewPayment(
+    KitchenOrder order, {
+    required bool verify,
+  }) async {
+    final repository = widget.paymentRepository;
+    if (repository == null || _updating.contains(order.id)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          verify ? 'Verify bKash payment?' : 'Reject Transaction ID?',
+        ),
+        content: Text(
+          verify
+              ? 'Confirm that ${orderCurrency(order.finalPrice)} was received in the kitchen bKash account.'
+              : 'The customer can submit a corrected Transaction ID for this same order.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(verify ? 'Verify Payment' : 'Reject ID'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _updating.add(order.id));
+    try {
+      await repository.reviewBkash(order.id, verify: verify);
+      await dispatchOrderEventsBestEffort(
+        widget.notificationDispatcher,
+        order.id,
+      );
+      await _refresh(silent: true);
+    } on PaymentException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _updating.remove(order.id));
+    }
+  }
+
+  Future<void> _markRefundCompleted(KitchenOrder order) async {
+    final repository = widget.paymentRepository;
+    if (repository == null || _updating.contains(order.id)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark refund completed?'),
+        content: Text(
+          'Confirm that ${orderCurrency(order.finalPrice)} was manually refunded through bKash.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Refund Completed'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _updating.add(order.id));
+    try {
+      await repository.markRefundCompleted(order.id);
+      await dispatchOrderEventsBestEffort(
+        widget.notificationDispatcher,
+        order.id,
+      );
+      await _refresh(silent: true);
+    } on PaymentException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } finally {
       if (mounted) setState(() => _updating.remove(order.id));
     }
@@ -297,6 +399,70 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             Text(order.deliveryAddress),
             const SizedBox(height: 6),
             Text(orderTime(order.createdAt)),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'PAYMENT',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    paymentStatusLabel(
+                      order.payment.method,
+                      order.payment.status,
+                    ),
+                  ),
+                  if (order.payment.method == PaymentMethod.bkash &&
+                      order.payment.transactionId != null)
+                    SelectableText(
+                      'Transaction ID: ${order.payment.transactionId}',
+                      key: Key('owner-transaction-${order.id}'),
+                    ),
+                  if (order.payment.submittedAt != null)
+                    Text('Submitted: ${orderTime(order.payment.submittedAt!)}'),
+                ],
+              ),
+            ),
+            if (!busy &&
+                order.payment.method == PaymentMethod.bkash &&
+                order.payment.status == PaymentStatus.awaitingVerification &&
+                widget.paymentRepository != null) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilledButton.icon(
+                    key: Key('verify-payment-${order.id}'),
+                    onPressed: () => _reviewPayment(order, verify: true),
+                    icon: const Icon(Icons.verified_outlined),
+                    label: const Text('Verify Payment'),
+                  ),
+                  OutlinedButton.icon(
+                    key: Key('reject-payment-${order.id}'),
+                    onPressed: () => _reviewPayment(order, verify: false),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Reject Transaction ID'),
+                  ),
+                ],
+              ),
+            ],
+            if (!busy &&
+                order.payment.status == PaymentStatus.refundPending &&
+                widget.paymentRepository != null)
+              FilledButton.tonalIcon(
+                key: Key('refund-complete-${order.id}'),
+                onPressed: () => _markRefundCompleted(order),
+                icon: const Icon(Icons.currency_exchange),
+                label: const Text('Mark Refund Completed'),
+              ),
             if (isOrderChatAvailable(order.status) &&
                 widget.chatRepository != null) ...[
               const SizedBox(height: 8),
@@ -323,22 +489,31 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: transitions.map((target) {
-                    final reject = target == OrderStatus.rejected;
-                    return reject
-                        ? OutlinedButton.icon(
-                            key: Key('reject-${order.id}'),
-                            onPressed: () => _transition(order, target),
-                            icon: const Icon(Icons.close),
-                            label: const Text('Reject'),
-                          )
-                        : FilledButton.icon(
-                            key: Key('${orderStatusValue(target)}-${order.id}'),
-                            onPressed: () => _transition(order, target),
-                            icon: const Icon(Icons.arrow_forward),
-                            label: Text(orderStatusLabel(target)),
-                          );
-                  }).toList(),
+                  children: transitions
+                      .where(
+                        (target) =>
+                            target != OrderStatus.accepted ||
+                            isPaymentReadyForPreparation(order.payment),
+                      )
+                      .map((target) {
+                        final reject = target == OrderStatus.rejected;
+                        return reject
+                            ? OutlinedButton.icon(
+                                key: Key('reject-${order.id}'),
+                                onPressed: () => _transition(order, target),
+                                icon: const Icon(Icons.close),
+                                label: const Text('Reject'),
+                              )
+                            : FilledButton.icon(
+                                key: Key(
+                                  '${orderStatusValue(target)}-${order.id}',
+                                ),
+                                onPressed: () => _transition(order, target),
+                                icon: const Icon(Icons.arrow_forward),
+                                label: Text(orderStatusLabel(target)),
+                              );
+                      })
+                      .toList(),
                 ),
             ],
           ],

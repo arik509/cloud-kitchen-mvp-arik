@@ -101,13 +101,13 @@ class SupabaseRiderDeliveryRemoteDataSource
   @override
   Future<Object?> available() {
     _requireSession();
-    return _client.rpc('list_available_deliveries');
+    return _client.rpc('list_available_deliveries_v2');
   }
 
   @override
   Future<Object?> mine() {
     _requireSession();
-    return _client.rpc('list_my_rider_deliveries');
+    return _client.rpc('list_my_rider_deliveries_v2');
   }
 
   @override
@@ -174,6 +174,12 @@ class RiderDeliveryException implements Exception {
       return const RiderDeliveryException(
         RiderDeliveryFailure.invalidTransition,
         'That delivery update is no longer allowed. Refresh and retry.',
+      );
+    }
+    if (value.contains('cod_collection_required')) {
+      return const RiderDeliveryException(
+        RiderDeliveryFailure.invalidTransition,
+        'Confirm Cash Collected before marking this order delivered.',
       );
     }
     return const RiderDeliveryException(

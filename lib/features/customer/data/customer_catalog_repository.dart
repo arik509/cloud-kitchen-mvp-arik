@@ -23,7 +23,8 @@ class SupabaseCustomerCatalogRepository implements CustomerCatalogRepository {
       final rows = await _client
           .from('kitchens')
           .select(
-            'id,owner_id,name,address,latitude,longitude,image_path,is_active',
+            'id,owner_id,name,address,latitude,longitude,image_path,is_active,'
+            'accepts_bkash,bkash_number,accepts_cod',
           )
           .eq('is_active', true)
           .not('latitude', 'is', null)

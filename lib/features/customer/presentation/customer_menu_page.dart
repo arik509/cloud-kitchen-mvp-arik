@@ -6,6 +6,7 @@ import '../../menu/domain/menu_item.dart';
 import '../../menu/presentation/menu_image_view.dart';
 import '../../orders/data/order_repository.dart';
 import '../../orders/presentation/order_confirmation_page.dart';
+import '../../notifications/data/notification_dispatcher.dart';
 import '../../wallet/data/wallet_repository.dart';
 import '../data/customer_catalog_repository.dart';
 
@@ -16,6 +17,9 @@ class CustomerMenuPage extends StatefulWidget {
     required this.imageRepository,
     required this.walletRepository,
     required this.orderRepository,
+    this.ratingAverage = 0,
+    this.ratingCount = 0,
+    this.notificationDispatcher,
     super.key,
   });
 
@@ -24,6 +28,9 @@ class CustomerMenuPage extends StatefulWidget {
   final MenuImageRepository imageRepository;
   final WalletRepository walletRepository;
   final OrderRepository orderRepository;
+  final double ratingAverage;
+  final int ratingCount;
+  final OrderNotificationDispatcher? notificationDispatcher;
 
   @override
   State<CustomerMenuPage> createState() => _CustomerMenuPageState();
@@ -59,6 +66,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
           item: item,
           walletRepository: widget.walletRepository,
           orderRepository: widget.orderRepository,
+          notificationDispatcher: widget.notificationDispatcher,
         ),
       ),
     );
@@ -118,10 +126,54 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
             key: const Key('customer-menu-list'),
             padding: const EdgeInsets.all(16),
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: items.length,
+            itemCount: items.length + 1,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              final item = items[index];
+              if (index == 0) {
+                final methods = <String>[
+                  if (widget.kitchen.acceptsBkash) 'bKash',
+                  if (widget.kitchen.acceptsCod) 'Cash on Delivery',
+                ];
+                return Card(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.kitchen.name,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(widget.kitchen.address),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.star_rounded,
+                              color: Colors.amber.shade700,
+                            ),
+                            Text(
+                              widget.ratingCount == 0
+                                  ? ' New kitchen'
+                                  : ' ${widget.ratingAverage.toStringAsFixed(1)} (${widget.ratingCount})',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          children: methods
+                              .map((method) => Chip(label: Text(method)))
+                              .toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              final item = items[index - 1];
               return Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),

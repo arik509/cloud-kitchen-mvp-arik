@@ -5,6 +5,7 @@ import '../features/auth/presentation/auth_gate.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/profile/presentation/role_router.dart';
 import '../features/notifications/application/push_notification_service.dart';
+import '../core/theme/app_theme.dart';
 
 class CloudKitchenApp extends StatefulWidget {
   const CloudKitchenApp({
@@ -43,10 +44,7 @@ class _CloudKitchenAppState extends State<CloudKitchenApp> {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'Cloud Kitchen',
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xffd35400)),
-      useMaterial3: true,
-    ),
+    theme: AppTheme.light,
     home: AuthGate(
       authRepository: widget.authRepository,
       profileRepository: widget.profileRepository,

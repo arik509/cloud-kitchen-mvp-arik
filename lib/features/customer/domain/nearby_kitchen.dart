@@ -7,6 +7,8 @@ class NearbyKitchen {
     this.representativeImagePath,
     this.representativeImageUrl,
     this.representativeImageBucket = KitchenImageBucket.menu,
+    this.averageRating = 0,
+    this.ratingCount = 0,
   });
 
   final Kitchen kitchen;
@@ -14,6 +16,19 @@ class NearbyKitchen {
   final String? representativeImagePath;
   final String? representativeImageUrl;
   final KitchenImageBucket representativeImageBucket;
+  final double averageRating;
+  final int ratingCount;
+
+  NearbyKitchen copyWithRating({required double average, required int count}) =>
+      NearbyKitchen(
+        kitchen: kitchen,
+        distanceKm: distanceKm,
+        representativeImagePath: representativeImagePath,
+        representativeImageUrl: representativeImageUrl,
+        representativeImageBucket: representativeImageBucket,
+        averageRating: average,
+        ratingCount: count,
+      );
 }
 
 enum KitchenImageBucket { kitchen, menu }

@@ -99,7 +99,8 @@ class SupabaseKitchenOrderRemoteDataSource
         .select(
           'id,kitchen_id,status,final_price,delivery_address,created_at,'
           'kitchens!inner(owner_id),'
-          'order_items(quantity,unit_price,menu_items(name))',
+          'order_items(quantity,unit_price,menu_items(name)),'
+          'order_payments(payment_method,payment_status,transaction_id,submitted_at)',
         )
         .eq('kitchens.owner_id', _userId)
         .order('created_at', ascending: false);
@@ -170,6 +171,13 @@ class KitchenOrderRepositoryException implements Exception {
       return KitchenOrderRepositoryException(
         KitchenOrderFailureCode.invalidTransition,
         'That order status change is no longer allowed. Refresh and retry.',
+        backendCode: backendCode,
+      );
+    }
+    if (normalized.contains('payment_not_ready')) {
+      return KitchenOrderRepositoryException(
+        KitchenOrderFailureCode.invalidTransition,
+        'Verify the bKash payment before accepting this order.',
         backendCode: backendCode,
       );
     }

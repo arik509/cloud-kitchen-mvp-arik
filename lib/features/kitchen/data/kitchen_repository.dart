@@ -21,7 +21,8 @@ class SupabaseKitchenRepository implements KitchenRepository {
       final row = await _client
           .from('kitchens')
           .select(
-            'id,owner_id,name,address,latitude,longitude,image_path,is_active',
+            'id,owner_id,name,address,latitude,longitude,image_path,is_active,'
+            'accepts_bkash,bkash_number,accepts_cod',
           )
           .eq('owner_id', ownerId)
           .maybeSingle();
@@ -38,7 +39,8 @@ class SupabaseKitchenRepository implements KitchenRepository {
           .from('kitchens')
           .insert(draft.toInsertMap(ownerId))
           .select(
-            'id,owner_id,name,address,latitude,longitude,image_path,is_active',
+            'id,owner_id,name,address,latitude,longitude,image_path,is_active,'
+            'accepts_bkash,bkash_number,accepts_cod',
           )
           .single();
       return Kitchen.fromMap(row);
@@ -57,7 +59,8 @@ class SupabaseKitchenRepository implements KitchenRepository {
           .eq('id', kitchen.id)
           .eq('owner_id', ownerId)
           .select(
-            'id,owner_id,name,address,latitude,longitude,image_path,is_active',
+            'id,owner_id,name,address,latitude,longitude,image_path,is_active,'
+            'accepts_bkash,bkash_number,accepts_cod',
           )
           .single();
       return Kitchen.fromMap(row);

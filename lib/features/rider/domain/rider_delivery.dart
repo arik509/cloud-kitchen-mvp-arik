@@ -1,4 +1,5 @@
 import '../../orders/domain/order_models.dart';
+import '../../payments/domain/payment_models.dart';
 
 class RiderDelivery {
   const RiderDelivery({
@@ -15,6 +16,10 @@ class RiderDelivery {
     required this.createdAt,
     this.kitchenLatitude,
     this.kitchenLongitude,
+    this.payment = const OrderPayment(
+      method: PaymentMethod.demoWallet,
+      status: PaymentStatus.verified,
+    ),
   });
 
   final String id;
@@ -30,6 +35,7 @@ class RiderDelivery {
   final String itemName;
   final int quantity;
   final DateTime createdAt;
+  final OrderPayment payment;
 
   factory RiderDelivery.fromMap(Map<String, dynamic> map) => RiderDelivery(
     id: map['order_id'] as String,
@@ -45,6 +51,7 @@ class RiderDelivery {
     itemName: map['item_name'] as String,
     quantity: map['quantity'] as int,
     createdAt: DateTime.parse(map['created_at'] as String),
+    payment: OrderPayment.fromMap(map),
   );
 }
 

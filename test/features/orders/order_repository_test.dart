@@ -3,7 +3,7 @@ import 'package:cloud_kitchen_mvp/features/orders/domain/order_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('place-order request contains only item ID and delivery address', () {
+  test('place-order request contains only checkout inputs', () {
     const request = PlaceOrderRequest(
       menuItemId: 'item-1',
       deliveryAddress: '  12 Test Road  ',
@@ -12,6 +12,8 @@ void main() {
     expect(request.toRpcParameters(), {
       'p_menu_item_id': 'item-1',
       'p_delivery_address': '12 Test Road',
+      'p_payment_method': 'cash_on_delivery',
+      'p_transaction_id': null,
     });
     expect(
       request.toRpcParameters().keys,
@@ -23,6 +25,7 @@ void main() {
           'status',
           'platform_fee',
           'rider_fee',
+          'wallet_balance',
         ]),
       ),
     );
@@ -52,6 +55,8 @@ void main() {
       expect(source.lastParameters, {
         'p_menu_item_id': 'item-1',
         'p_delivery_address': 'Customer address',
+        'p_payment_method': 'cash_on_delivery',
+        'p_transaction_id': null,
       });
       expect(result.orderId, 'order-1');
       expect(result.authoritativeTotal, 240);

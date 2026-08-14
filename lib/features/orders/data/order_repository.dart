@@ -79,7 +79,7 @@ class SupabaseOrderRemoteDataSource implements OrderRemoteDataSource {
         'Sign in again before placing an order.',
       );
     }
-    return _client.rpc('place_order', params: parameters);
+    return _client.rpc('place_order_v2', params: parameters);
   }
 
   @override
@@ -96,7 +96,9 @@ class SupabaseOrderRemoteDataSource implements OrderRemoteDataSource {
         .select(
           'id,kitchen_id,status,final_price,delivery_address,created_at,'
           'kitchens(name),'
-          'order_items(unit_price,menu_items(name))',
+          'order_items(unit_price,menu_items(name)),'
+          'order_payments(payment_method,payment_status,transaction_id,submitted_at),'
+          'ratings(stars)',
         )
         .eq('customer_id', userId)
         .order('created_at', ascending: false);
@@ -108,6 +110,8 @@ enum OrderFailureCode {
   unauthenticated,
   customerRoleRequired,
   invalidAddress,
+  invalidPayment,
+  duplicateTransaction,
   unavailableItem,
   insufficientBalance,
   invalidResponse,
@@ -150,6 +154,22 @@ class OrderRepositoryException implements Exception {
       return OrderRepositoryException(
         OrderFailureCode.unavailableItem,
         'This menu item is no longer available.',
+        backendCode: backendCode,
+      );
+    }
+    if (normalized.contains('invalid_payment_method') ||
+        normalized.contains('payment_method_unavailable') ||
+        normalized.contains('invalid_bkash_transaction_id')) {
+      return OrderRepositoryException(
+        OrderFailureCode.invalidPayment,
+        'Choose an available payment method and enter a valid Transaction ID.',
+        backendCode: backendCode,
+      );
+    }
+    if (normalized.contains('bkash_transaction_id_already_used')) {
+      return OrderRepositoryException(
+        OrderFailureCode.duplicateTransaction,
+        'That Transaction ID was already used.',
         backendCode: backendCode,
       );
     }

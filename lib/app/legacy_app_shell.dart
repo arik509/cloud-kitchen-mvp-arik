@@ -18,6 +18,8 @@ import '../features/orders/data/kitchen_order_repository.dart';
 import '../features/orders/data/order_repository.dart';
 import '../features/orders/presentation/kitchen_orders_page.dart';
 import '../features/orders/presentation/my_orders_page.dart';
+import '../features/payments/data/payment_repository.dart';
+import '../features/ratings/data/rating_repository.dart';
 import '../features/profile/domain/user_role.dart';
 import '../features/rider/data/rider_delivery_repository.dart';
 import '../features/rider/presentation/rider_deliveries_page.dart';
@@ -74,10 +76,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
+                Icon(
                   Icons.restaurant_menu_rounded,
                   size: 86,
-                  color: Color(0xffd35400),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -325,6 +327,11 @@ class _HomeScreenState extends State<HomeScreen> {
       dispatcher: SupabaseNotificationDispatcher(widget.client),
     );
     final riderRepository = SupabaseRiderDeliveryRepository(widget.client);
+    final paymentRepository = SupabasePaymentRepository(widget.client);
+    final ratingRepository = SupabaseRatingRepository(widget.client);
+    final notificationDispatcher = SupabaseNotificationDispatcher(
+      widget.client,
+    );
     final pages = switch (widget.role) {
       UserRole.customer => [
         CustomerDiscoveryPage(
@@ -334,6 +341,8 @@ class _HomeScreenState extends State<HomeScreen> {
           kitchenImageRepository: SupabaseKitchenImageRepository(widget.client),
           walletRepository: SupabaseWalletRepository(widget.client),
           orderRepository: orderRepository,
+          ratingRepository: ratingRepository,
+          notificationDispatcher: notificationDispatcher,
           onOrderPlaced: () => setState(() {
             _ordersRevision++;
             index = 1;
@@ -343,6 +352,9 @@ class _HomeScreenState extends State<HomeScreen> {
           key: ValueKey(_ordersRevision),
           repository: orderRepository,
           chatRepository: chatRepository,
+          paymentRepository: paymentRepository,
+          ratingRepository: ratingRepository,
+          notificationDispatcher: notificationDispatcher,
         ),
         ProfilePage(notificationService: widget.notificationService),
       ],
@@ -351,11 +363,17 @@ class _HomeScreenState extends State<HomeScreen> {
         KitchenOrdersPage(
           repository: SupabaseKitchenOrderRepository(widget.client),
           chatRepository: chatRepository,
+          paymentRepository: paymentRepository,
+          notificationDispatcher: notificationDispatcher,
         ),
         ProfilePage(notificationService: widget.notificationService),
       ],
       UserRole.rider => [
-        RiderDeliveriesPage(repository: riderRepository),
+        RiderDeliveriesPage(
+          repository: riderRepository,
+          paymentRepository: paymentRepository,
+          notificationDispatcher: notificationDispatcher,
+        ),
         RiderEarningsPage(repository: riderRepository),
         ProfilePage(notificationService: widget.notificationService),
       ],
@@ -369,6 +387,8 @@ class _HomeScreenState extends State<HomeScreen> {
       service: widget.notificationService,
       chatEnabled: widget.role != UserRole.rider,
       onOpenChat: _openNotificationChat,
+      onOpenOrder: (_) =>
+          setState(() => index = widget.role == UserRole.rider ? 0 : 1),
       child: Scaffold(
         appBar: AppBar(title: Text(labels[index])),
         body: pages[index],

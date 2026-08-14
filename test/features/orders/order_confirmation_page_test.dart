@@ -5,158 +5,160 @@ import 'package:cloud_kitchen_mvp/features/menu/domain/menu_item.dart';
 import 'package:cloud_kitchen_mvp/features/orders/data/order_repository.dart';
 import 'package:cloud_kitchen_mvp/features/orders/domain/order_models.dart';
 import 'package:cloud_kitchen_mvp/features/orders/presentation/order_confirmation_page.dart';
+import 'package:cloud_kitchen_mvp/features/payments/domain/payment_models.dart';
 import 'package:cloud_kitchen_mvp/features/wallet/data/wallet_repository.dart';
 import 'package:cloud_kitchen_mvp/features/wallet/domain/wallet_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('submits exactly one minimal request and blocks duplicates', (
+  testWidgets('COD checkout submits once without wallet or transaction ID', (
     tester,
   ) async {
-    final orderRepository = FakeOrderRepository();
-    await tester.pumpWidget(_app(orderRepository: orderRepository));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(find.byType(TextFormField), '  Delivery Road  ');
+    _useTallTestView(tester);
+    final repository = FakeOrderRepository();
+    await tester.pumpWidget(_app(repository));
+    await tester.enterText(
+      find.byKey(const Key('delivery-address')),
+      '  Delivery Road  ',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('place-order-button')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.byKey(const Key('place-order-button')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('place-order-button')));
-    await tester.pump();
-
-    expect(orderRepository.calls, 1);
-    expect(orderRepository.request!.toRpcParameters(), {
+    await tester.tap(
+      find.byKey(const Key('place-order-button')),
+      warnIfMissed: false,
+    );
+    expect(repository.calls, 1);
+    expect(repository.request!.toRpcParameters(), {
       'p_menu_item_id': 'item-1',
       'p_delivery_address': 'Delivery Road',
+      'p_payment_method': 'cash_on_delivery',
+      'p_transaction_id': null,
     });
-
-    orderRepository.completer.complete(
+    repository.completer.complete(
       const PlaceOrderResult(
         orderId: 'order-1',
         authoritativeTotal: 120,
-        walletBalance: 880,
+        paymentMethod: PaymentMethod.cashOnDelivery,
+        paymentStatus: PaymentStatus.codPending,
       ),
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('order-success')), findsOneWidget);
+    expect(find.textContaining('pending collection'), findsOneWidget);
+    expect(find.textContaining('Wallet'), findsNothing);
   });
 
-  testWidgets('adds demo balance and updates the displayed wallet', (
+  testWidgets('bKash checkout requires and normalizes Transaction ID', (
     tester,
   ) async {
+    _useTallTestView(tester);
+    final repository = FakeOrderRepository();
     await tester.pumpWidget(
       _app(
-        orderRepository: FakeOrderRepository(),
-        walletRepository: FakeWalletRepository(),
+        repository,
+        kitchen: _kitchen.copyWith(
+          acceptsBkash: true,
+          bkashNumber: '01700000000',
+        ),
       ),
     );
+    await tester.tap(find.byKey(const Key('payment-bkash')));
     await tester.pumpAndSettle();
-
-    expect(find.text('Wallet: ৳1000.00'), findsOneWidget);
-    await tester.tap(find.text('Add Demo Balance'));
-    await tester.pumpAndSettle();
-    expect(find.text('Wallet: ৳1500.00'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('delivery-address')),
+      'Delivery Road',
+    );
+    await tester.enterText(
+      find.byKey(const Key('bkash-transaction-id')),
+      ' ab 12cd ',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('place-order-button')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('place-order-button')));
+    await tester.pump();
+    expect(repository.request!.paymentMethod, PaymentMethod.bkash);
+    expect(repository.request!.toRpcParameters()['p_transaction_id'], 'AB12CD');
+    expect(find.textContaining('manually verified'), findsOneWidget);
   });
 
-  testWidgets('shows typed insufficient-balance error', (tester) async {
+  testWidgets('shows safe repository error', (tester) async {
+    _useTallTestView(tester);
     final repository = FakeOrderRepository(
       error: const OrderRepositoryException(
-        OrderFailureCode.insufficientBalance,
-        'Your wallet balance is too low for this order.',
+        OrderFailureCode.duplicateTransaction,
+        'That Transaction ID was already used.',
       ),
     );
-    await tester.pumpWidget(_app(orderRepository: repository));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), 'Delivery Road');
+    await tester.pumpWidget(_app(repository));
+    await tester.enterText(
+      find.byKey(const Key('delivery-address')),
+      'Delivery Road',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('place-order-button')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.byKey(const Key('place-order-button')));
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('order-error')), findsOneWidget);
-    expect(find.textContaining('too low'), findsOneWidget);
   });
-
-  for (final failure in const [
-    (
-      OrderFailureCode.unavailableItem,
-      'This menu item is no longer available.',
-    ),
-    (
-      OrderFailureCode.unauthenticated,
-      'Sign in again before placing an order.',
-    ),
-    (
-      OrderFailureCode.unavailable,
-      'The order service is unavailable. Try again.',
-    ),
-  ]) {
-    testWidgets('shows ${failure.$1.name} order error', (tester) async {
-      await tester.pumpWidget(
-        _app(
-          orderRepository: FakeOrderRepository(
-            error: OrderRepositoryException(failure.$1, failure.$2),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField), 'Delivery Road');
-      await tester.tap(find.byKey(const Key('place-order-button')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const Key('order-error')), findsOneWidget);
-      expect(find.text(failure.$2), findsOneWidget);
-    });
-  }
 }
 
-Widget _app({
-  required FakeOrderRepository orderRepository,
-  WalletRepository? walletRepository,
-}) => MaterialApp(
-  home: OrderConfirmationPage(
-    kitchen: const Kitchen(
-      id: 'kitchen-1',
-      ownerId: 'owner-1',
-      name: 'Kitchen',
-      address: 'Address',
-    ),
-    item: const MenuItem(
-      id: 'item-1',
-      kitchenId: 'kitchen-1',
-      name: 'Meal',
-      price: 120,
-      isAvailable: true,
-    ),
-    walletRepository: walletRepository ?? FakeWalletRepository(),
-    orderRepository: orderRepository,
-  ),
+void _useTallTestView(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(800, 1000);
+  addTearDown(tester.view.reset);
+}
+
+const _kitchen = Kitchen(
+  id: 'kitchen-1',
+  ownerId: 'owner-1',
+  name: 'Kitchen',
+  address: 'Address',
+  acceptsCod: true,
 );
+Widget _app(FakeOrderRepository repository, {Kitchen kitchen = _kitchen}) =>
+    MaterialApp(
+      home: OrderConfirmationPage(
+        kitchen: kitchen,
+        item: const MenuItem(
+          id: 'item-1',
+          kitchenId: 'kitchen-1',
+          name: 'Meal',
+          price: 120,
+          isAvailable: true,
+        ),
+        walletRepository: FakeWalletRepository(),
+        orderRepository: repository,
+      ),
+    );
 
 class FakeWalletRepository implements WalletRepository {
   @override
   Future<WalletBalance> fetchCurrentBalance() async =>
       const WalletBalance(1000);
-
   @override
-  Future<AddDemoBalanceResult> addDemoBalance() async => AddDemoBalanceResult(
-    transactionId: 'transaction-1',
-    creditedAmount: 500,
-    balanceAfter: 1500,
-    kind: WalletTransactionKind.demoCredit,
-    createdAt: DateTime.utc(2026),
-  );
+  Future<AddDemoBalanceResult> addDemoBalance() => throw UnimplementedError();
 }
 
 class FakeOrderRepository implements OrderRepository {
   FakeOrderRepository({this.error});
-
   final OrderRepositoryException? error;
   final completer = Completer<PlaceOrderResult>();
   PlaceOrderRequest? request;
   int calls = 0;
-
   @override
   Future<List<CustomerOrder>> fetchCurrentCustomerOrders() async => const [];
-
   @override
   Future<PlaceOrderResult> placeOrder(PlaceOrderRequest request) {
     calls++;

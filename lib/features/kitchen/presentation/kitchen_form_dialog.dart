@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/location/location_models.dart';
 import '../../../core/location/location_service.dart';
+import '../../../core/location/location_picker_page.dart';
 import '../../menu/data/menu_image_repository.dart';
+import '../../payments/domain/payment_models.dart';
 import '../domain/kitchen.dart';
 import '../domain/kitchen_validation.dart';
 
@@ -38,6 +40,9 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
   late final TextEditingController _latitude;
   late final TextEditingController _longitude;
   late bool _active;
+  late bool _acceptsBkash;
+  late bool _acceptsCod;
+  late final TextEditingController _bkashNumber;
   bool _locating = false;
   bool _pickingImage = false;
   PickedMenuImage? _selectedImage;
@@ -58,6 +63,9 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
       text: kitchen?.longitude?.toString() ?? '',
     );
     _active = kitchen?.isActive ?? true;
+    _acceptsBkash = kitchen?.acceptsBkash ?? false;
+    _acceptsCod = kitchen?.acceptsCod ?? true;
+    _bkashNumber = TextEditingController(text: kitchen?.bkashNumber ?? '');
   }
 
   @override
@@ -66,6 +74,7 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
     _address.dispose();
     _latitude.dispose();
     _longitude.dispose();
+    _bkashNumber.dispose();
     super.dispose();
   }
 
@@ -96,6 +105,30 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  Future<void> _chooseOnMap() async {
+    final latitude = double.tryParse(_latitude.text.trim());
+    final longitude = double.tryParse(_longitude.text.trim());
+    final initial = await resolveInitialMapLocation(
+      savedLatitude: latitude,
+      savedLongitude: longitude,
+      currentLocation: widget.locationService.determineLocation,
+    );
+    if (!mounted) return;
+    final selected = await Navigator.push<GeoCoordinates>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(initialLocation: initial),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _latitude.text = selected.latitude.toStringAsFixed(6);
+      _longitude.text = selected.longitude.toStringAsFixed(6);
+      _locationSuccess = 'Map location selected';
+      _locationError = null;
+    });
   }
 
   Future<void> _openSettings() async {
@@ -201,6 +234,13 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
                     _locating ? 'Getting location...' : 'Use Current Location',
                   ),
                 ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const Key('choose-on-map'),
+                  onPressed: _chooseOnMap,
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Choose on Map'),
+                ),
                 if (_locationSuccess != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -259,6 +299,44 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
                   value: _active,
                   onChanged: (value) => setState(() => _active = value),
                 ),
+                const Divider(),
+                Text(
+                  'Customer payment methods',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                SwitchListTile(
+                  key: const Key('accept-bkash'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Accept bKash'),
+                  subtitle: const Text('Payments are verified manually.'),
+                  value: _acceptsBkash,
+                  onChanged: (value) => setState(() => _acceptsBkash = value),
+                ),
+                if (_acceptsBkash)
+                  TextFormField(
+                    key: const Key('bkash-number'),
+                    controller: _bkashNumber,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'bKash receiving number',
+                    ),
+                    validator: (value) => validateBangladeshiMobile(value),
+                  ),
+                SwitchListTile(
+                  key: const Key('accept-cod'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Accept Cash on Delivery'),
+                  value: _acceptsCod,
+                  onChanged: (value) => setState(() => _acceptsCod = value),
+                ),
+                if (_active && !_acceptsBkash && !_acceptsCod)
+                  Text(
+                    'Enable at least one payment method for an active kitchen.',
+                    key: const Key('payment-method-required'),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -276,6 +354,7 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
+    if (_active && !_acceptsBkash && !_acceptsCod) return;
     Navigator.pop(
       context,
       KitchenFormResult(
@@ -285,6 +364,11 @@ class _KitchenFormDialogState extends State<KitchenFormDialog> {
           latitude: _optionalDouble(_latitude.text),
           longitude: _optionalDouble(_longitude.text),
           isActive: _active,
+          acceptsBkash: _acceptsBkash,
+          bkashNumber: _acceptsBkash
+              ? normalizeBangladeshiMobile(_bkashNumber.text)
+              : null,
+          acceptsCod: _acceptsCod,
         ),
         image: _selectedImage,
       ),

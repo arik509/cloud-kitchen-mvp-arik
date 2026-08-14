@@ -15,6 +15,14 @@ enum NotificationEventType {
   riderAssigned,
   pickedUp,
   delivered,
+  newOrder,
+  orderRejected,
+  bkashAwaitingVerification,
+  bkashVerified,
+  bkashRejected,
+  refundPending,
+  refundCompleted,
+  codCollected,
 }
 
 NotificationEventType? parseNotificationEventType(Object? value) =>
@@ -27,6 +35,15 @@ NotificationEventType? parseNotificationEventType(Object? value) =>
       'rider_assigned' => NotificationEventType.riderAssigned,
       'picked_up' => NotificationEventType.pickedUp,
       'delivered' => NotificationEventType.delivered,
+      'new_order' => NotificationEventType.newOrder,
+      'order_rejected' => NotificationEventType.orderRejected,
+      'bkash_awaiting_verification' =>
+        NotificationEventType.bkashAwaitingVerification,
+      'bkash_verified' => NotificationEventType.bkashVerified,
+      'bkash_rejected' => NotificationEventType.bkashRejected,
+      'refund_pending' => NotificationEventType.refundPending,
+      'refund_completed' => NotificationEventType.refundCompleted,
+      'cod_collected' => NotificationEventType.codCollected,
       _ => null,
     };
 
@@ -48,14 +65,12 @@ class NotificationDestination {
   factory NotificationDestination.fromData(Map<String, dynamic> data) {
     final type = parseNotificationEventType(data['type']);
     final orderId = data['order_id'] as String?;
-    if (type != NotificationEventType.chatMessage ||
-        orderId == null ||
-        !_uuid.hasMatch(orderId)) {
+    if (type == null || orderId == null || !_uuid.hasMatch(orderId)) {
       throw const FormatException('Unsupported notification destination.');
     }
     final rawKitchenName = data['kitchen_name'] as String?;
     return NotificationDestination(
-      type: type!,
+      type: type,
       orderId: orderId,
       kitchenName: rawKitchenName?.trim().isEmpty ?? true
           ? null

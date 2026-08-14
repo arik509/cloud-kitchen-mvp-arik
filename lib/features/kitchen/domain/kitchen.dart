@@ -8,6 +8,9 @@ class Kitchen {
     this.longitude,
     this.imagePath,
     this.isActive = true,
+    this.acceptsBkash = false,
+    this.bkashNumber,
+    this.acceptsCod = true,
   });
 
   final String id;
@@ -18,6 +21,9 @@ class Kitchen {
   final double? longitude;
   final String? imagePath;
   final bool isActive;
+  final bool acceptsBkash;
+  final String? bkashNumber;
+  final bool acceptsCod;
 
   factory Kitchen.fromMap(Map<String, dynamic> map) => Kitchen(
     id: map['id'] as String,
@@ -28,6 +34,9 @@ class Kitchen {
     longitude: (map['longitude'] as num?)?.toDouble(),
     imagePath: _optionalText(map['image_path']),
     isActive: map['is_active'] as bool? ?? true,
+    acceptsBkash: map['accepts_bkash'] as bool? ?? false,
+    bkashNumber: _optionalText(map['bkash_number']),
+    acceptsCod: map['accepts_cod'] as bool? ?? true,
   );
 
   Kitchen copyWith({
@@ -37,6 +46,9 @@ class Kitchen {
     Object? longitude = _notProvided,
     Object? imagePath = _notProvided,
     bool? isActive,
+    bool? acceptsBkash,
+    Object? bkashNumber = _notProvided,
+    bool? acceptsCod,
   }) => Kitchen(
     id: id,
     ownerId: ownerId,
@@ -52,6 +64,11 @@ class Kitchen {
         ? this.imagePath
         : imagePath as String?,
     isActive: isActive ?? this.isActive,
+    acceptsBkash: acceptsBkash ?? this.acceptsBkash,
+    bkashNumber: identical(bkashNumber, _notProvided)
+        ? this.bkashNumber
+        : bkashNumber as String?,
+    acceptsCod: acceptsCod ?? this.acceptsCod,
   );
 
   Map<String, dynamic> toUpdateMap() => {
@@ -61,6 +78,9 @@ class Kitchen {
     'longitude': longitude,
     'image_path': imagePath,
     'is_active': isActive,
+    'accepts_bkash': acceptsBkash,
+    'bkash_number': bkashNumber,
+    'accepts_cod': acceptsCod,
   };
 }
 
@@ -71,6 +91,9 @@ class KitchenDraft {
     this.latitude,
     this.longitude,
     this.isActive = true,
+    this.acceptsBkash = false,
+    this.bkashNumber,
+    this.acceptsCod = true,
   });
 
   final String name;
@@ -78,6 +101,9 @@ class KitchenDraft {
   final double? latitude;
   final double? longitude;
   final bool isActive;
+  final bool acceptsBkash;
+  final String? bkashNumber;
+  final bool acceptsCod;
 
   Map<String, dynamic> toInsertMap(String ownerId) => {
     'owner_id': ownerId,
@@ -86,6 +112,9 @@ class KitchenDraft {
     'latitude': latitude,
     'longitude': longitude,
     'is_active': isActive,
+    'accepts_bkash': acceptsBkash,
+    'bkash_number': bkashNumber,
+    'accepts_cod': acceptsCod,
   };
 
   Kitchen applyTo(Kitchen kitchen, {Object? imagePath = _notProvided}) =>
@@ -100,6 +129,9 @@ class KitchenDraft {
             ? kitchen.imagePath
             : imagePath as String?,
         isActive: isActive,
+        acceptsBkash: acceptsBkash,
+        bkashNumber: bkashNumber,
+        acceptsCod: acceptsCod,
       );
 }
 
