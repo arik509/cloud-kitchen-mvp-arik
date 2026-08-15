@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/presentation/app_ui.dart';
 import '../../finance/data/settlement_repository.dart';
-import '../../finance/domain/settlement_models.dart';
+
 import '../../menu/data/menu_repository.dart';
 import '../../orders/data/kitchen_order_repository.dart';
 import '../../orders/domain/order_models.dart';
@@ -48,13 +48,27 @@ class _OwnerOverviewPageState extends State<OwnerOverviewPage> {
     final items = await widget.menuRepository.fetchForKitchen(kitchen.id);
     final orders = await widget.orderRepository.fetchOwnerOrders();
 
-    // Fetch revenue separately with graceful degradation.
-    OwnerRevenueSummary revenue = const OwnerRevenueSummary(entries: []);
-    try {
-      revenue = await widget.settlementRepository.fetchOwnerRevenue();
-    } catch (_) {
-      // Revenue unavailable but do not fail the whole dashboard.
+    // Compute revenue directly from delivered orders — no SQL RPC required.
+    // Only count orders where payment is actually confirmed (verified/collected).
+    final deliveredOrders = orders.where((o) => o.status == OrderStatus.delivered);
+    double grossSales = 0;
+    for (final o in deliveredOrders) {
+      final isPaid = o.payment.status == PaymentStatus.verified ||
+          o.payment.status == PaymentStatus.collected;
+      if (isPaid) grossSales += o.finalPrice;
     }
+    final platformFee = grossSales * 0.05;
+    final riderShare = grossSales * 0.10;
+    final ownerNet = grossSales * 0.85;
+    final clientRevenue = _ClientOwnerRevenue(
+      grossSales: grossSales,
+      platformFee: platformFee,
+      riderShare: riderShare,
+      ownerNet: ownerNet,
+      settledCount: deliveredOrders.where((o) =>
+          o.payment.status == PaymentStatus.verified ||
+          o.payment.status == PaymentStatus.collected).length,
+    );
 
     return _OwnerOverview(
       kitchen: kitchen,
@@ -83,7 +97,7 @@ class _OwnerOverviewPageState extends State<OwnerOverviewPage> {
                 order.payment.status == PaymentStatus.awaitingVerification,
           )
           .length,
-      revenue: revenue,
+      clientRevenue: clientRevenue,
     );
   }
 
@@ -207,7 +221,7 @@ class _OwnerOverviewPageState extends State<OwnerOverviewPage> {
               ],
             ),
             const SizedBox(height: 20),
-            _OwnerRevenueCard(revenue: overview.revenue),
+            _OwnerRevenueCard(clientRevenue: overview.clientRevenue),
           ],
         ),
       );
@@ -216,9 +230,9 @@ class _OwnerOverviewPageState extends State<OwnerOverviewPage> {
 }
 
 class _OwnerRevenueCard extends StatelessWidget {
-  const _OwnerRevenueCard({required this.revenue});
+  const _OwnerRevenueCard({required this.clientRevenue});
 
-  final OwnerRevenueSummary revenue;
+  final _ClientOwnerRevenue clientRevenue;
 
   @override
   Widget build(BuildContext context) {
@@ -234,26 +248,29 @@ class _OwnerRevenueCard extends StatelessWidget {
           children: [
             const AppSectionHeader(
               title: 'Revenue Summary',
-              subtitle: 'Settled delivered orders — 85 / 10 / 5 split',
+              subtitle: 'All paid & delivered orders — 85 / 10 / 5 split',
             ),
             const SizedBox(height: 16),
 
             // Income breakdown rows
             _RevenueRow(
               label: 'Gross Sales',
-              value: revenue.grossSales,
+              value: clientRevenue.grossSales,
               strong: true,
             ),
             _RevenueRow(
-              label: 'FoodCircle Fee (5%)',
-              value: -revenue.platformFees,
+              label: 'Rider Share (10%)',
+              value: -clientRevenue.riderShare,
             ),
-            _RevenueRow(label: 'Rider Share (10%)', value: -revenue.riderShare),
+            _RevenueRow(
+              label: 'FoodCircle Platform Fee (5%)',
+              value: -clientRevenue.platformFee,
+            ),
             const Divider(),
             _RevenueRow(
               key: const Key('owner-net-earnings'),
-              label: 'Net Earnings (85%)',
-              value: revenue.ownerNetEarnings,
+              label: 'Your Net Earnings (85%)',
+              value: clientRevenue.ownerNet,
               strong: true,
             ),
             const SizedBox(height: 16),
@@ -289,7 +306,7 @@ class _OwnerRevenueCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '${revenue.entries.length} delivered order${revenue.entries.length == 1 ? '' : 's'} settled',
+                      '${clientRevenue.settledCount} paid & delivered order${clientRevenue.settledCount == 1 ? '' : 's'}',
                       style: textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -299,22 +316,40 @@ class _OwnerRevenueCard extends StatelessWidget {
               ),
             ),
 
-            // Recent settlement entries (up to 5)
-            if (revenue.entries.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              const AppSectionHeader(
-                title: 'Recent Settlements',
-                subtitle: 'Last 5 delivered orders',
-              ),
-              const SizedBox(height: 8),
-              ...revenue.entries.take(5).map(
-                (entry) => _SettlementEntryTile(entry: entry),
+            // Platform fee owed notice
+            if (clientRevenue.platformFee > 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: scheme.onErrorContainer,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Platform fee due: ৳${clientRevenue.platformFee.toStringAsFixed(2)} (5% of gross) — payable to FoodCircle.',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onErrorContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
 
             const SizedBox(height: 8),
             Text(
-              'This ledger records settlement obligations; external payouts are handled separately.',
+              'Calculated from all confirmed (bKash verified / COD collected) delivered orders.',
               style: textTheme.bodySmall,
             ),
           ],
@@ -371,70 +406,7 @@ class _RatioDot extends StatelessWidget {
   );
 }
 
-class _SettlementEntryTile extends StatelessWidget {
-  const _SettlementEntryTile({required this.entry});
 
-  final OwnerSettlementEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final shortId =
-        (entry.orderId.length <= 8
-            ? entry.orderId
-            : entry.orderId.substring(entry.orderId.length - 8))
-        .toUpperCase();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor:
-                Theme.of(context).colorScheme.secondaryContainer,
-            child: const Icon(Icons.check, size: 14),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Order #$shortId',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  orderTime(entry.createdAt),
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '৳${entry.grossAmount.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '+৳${entry.ownerNetAmount.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _RevenueRow extends StatelessWidget {
   const _RevenueRow({
@@ -557,7 +529,7 @@ class _OwnerOverview {
     this.deliveredOrders = 0,
     this.rejectedOrders = 0,
     this.paymentAttention = 0,
-    this.revenue = const OwnerRevenueSummary(entries: []),
+    this.clientRevenue = const _ClientOwnerRevenue(),
   });
 
   final Kitchen? kitchen;
@@ -568,5 +540,20 @@ class _OwnerOverview {
   final int deliveredOrders;
   final int rejectedOrders;
   final int paymentAttention;
-  final OwnerRevenueSummary revenue;
+  final _ClientOwnerRevenue clientRevenue;
+}
+
+class _ClientOwnerRevenue {
+  const _ClientOwnerRevenue({
+    this.grossSales = 0,
+    this.platformFee = 0,
+    this.riderShare = 0,
+    this.ownerNet = 0,
+    this.settledCount = 0,
+  });
+  final double grossSales;
+  final double platformFee;
+  final double riderShare;
+  final double ownerNet;
+  final int settledCount;
 }

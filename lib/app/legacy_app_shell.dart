@@ -225,6 +225,7 @@ class _SignupScreenState extends State<SignupScreen> {
   String _role = 'customer';
   bool _loading = false;
   bool _obscurePassword = true;
+  bool _termsAccepted = false;
   @override
   void dispose() {
     for (final c in [_name, _phone, _address, _email, _password]) {
@@ -235,6 +236,14 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept the Terms & Conditions to continue.'),
+        ),
+      );
+      return;
+    }
     setState(() => _loading = true);
     try {
       final response = await Supabase.instance.client.auth.signUp(
@@ -345,21 +354,21 @@ class _SignupScreenState extends State<SignupScreen> {
                   selected: _role == 'customer',
                   icon: Icons.restaurant_menu,
                   label: 'Order food',
-                  onTap: () => setState(() => _role = 'customer'),
+                  onTap: () => setState(() { _role = 'customer'; _termsAccepted = false; }),
                 ),
                 _RoleChoice(
                   key: const Key('role-owner'),
                   selected: _role == 'kitchen_owner',
                   icon: Icons.storefront_outlined,
                   label: 'Run a kitchen',
-                  onTap: () => setState(() => _role = 'kitchen_owner'),
+                  onTap: () => setState(() { _role = 'kitchen_owner'; _termsAccepted = false; }),
                 ),
                 _RoleChoice(
                   key: const Key('role-rider'),
                   selected: _role == 'rider',
                   icon: Icons.delivery_dining,
                   label: 'Deliver orders',
-                  onTap: () => setState(() => _role = 'rider'),
+                  onTap: () => setState(() { _role = 'rider'; _termsAccepted = false; }),
                 ),
               ],
             ),
@@ -394,7 +403,24 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               validator: validatePassword,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            // Role-specific Terms & Conditions
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: _TermsCard(role: _role, key: ValueKey(_role)),
+            ),
+            CheckboxListTile(
+              key: const Key('terms-checkbox'),
+              value: _termsAccepted,
+              onChanged: (v) => setState(() => _termsAccepted = v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'I have read and agree to the Terms & Conditions above.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 8),
             FilledButton(
               key: const Key('signup-submit'),
               onPressed: _loading ? null : _signup,
@@ -429,6 +455,80 @@ class _RoleChoice extends StatelessWidget {
     label: Text(label),
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
   );
+}
+
+class _TermsCard extends StatelessWidget {
+  const _TermsCard({required this.role, super.key});
+  final String role;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final String title;
+    final String terms;
+    switch (role) {
+      case 'kitchen_owner':
+        title = 'Kitchen Owner Terms';
+        terms =
+            '1. You are responsible for the quality and safety of all food items listed on FoodCircle.\n'
+            '2. FoodCircle charges a platform fee of 5% on every confirmed order. This fee is owed to the platform.\n'
+            '3. Riders receive 10% of the order total as a delivery fee. Your net earnings are 85% of each order.\n'
+            '4. You must accurately represent your menu items, ingredients, and prices at all times.\n'
+            '5. Fraudulent orders or misuse of the platform may result in immediate suspension.';
+        break;
+      case 'rider':
+        title = 'Delivery Rider Terms';
+        terms =
+            '1. You must be legally allowed to work and have a valid vehicle for deliveries in Bangladesh.\n'
+            '2. You will earn 10% of each order\'s total as a delivery fee, credited after successful delivery.\n'
+            '3. Cash on Delivery (COD) amounts collected must be handed to the platform as agreed.\n'
+            '4. You are responsible for timely and safe delivery of all orders you accept.\n'
+            '5. Misconduct, fraud, or theft will result in immediate termination and legal action.';
+        break;
+      default: // customer
+        title = 'Customer Terms';
+        terms =
+            '1. You must provide accurate delivery information for each order placed.\n'
+            '2. Orders paid via bKash are verified before preparation begins. Provide valid transaction IDs.\n'
+            '3. Cash on Delivery (COD) orders must be paid in full upon delivery.\n'
+            '4. Refunds for cancelled or rejected orders are processed per the kitchen\'s policy.\n'
+            '5. Misuse of the platform or fraudulent orders may lead to account suspension.';
+    }
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.gavel_outlined, size: 16, color: scheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            terms,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class HomeScreen extends StatefulWidget {
